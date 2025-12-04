@@ -30,10 +30,8 @@ def main():
         else:
             print("Ignoring cache.")
 
-    # Find all forms for each lexeme
-
-    # Find all forms for each lexeme
-    lexeme_forms = df.groupby('lexeme')['form'].unique().to_dict()
+    # Find all forms for each lexeme and mps
+    lexeme_mps_forms = df.groupby(['lexeme', 'mps'])['form'].unique().to_dict()
 
     # Helper to extract <b>word</b> from text
     def extract_bold(text):
@@ -44,14 +42,18 @@ def main():
     records = []
     for idx, row in df.iterrows():
         lexeme = row['lexeme']
+        mps = row['mps']
         original_form = row['form']
         text = row['text']
         bold_word = extract_bold(text)
         # Confirm form matches <b>word</b>
         if bold_word != original_form:
             continue
-        # Find partner form
-        partner_forms = [f for f in lexeme_forms[lexeme] if f != original_form]
+        # Find partner form within same lexeme and mps
+        key = (lexeme, mps)
+        if key not in lexeme_mps_forms:
+            continue
+        partner_forms = [f for f in lexeme_mps_forms[key] if f != original_form]
         if not partner_forms:
             continue
         partner_form = partner_forms[0]
@@ -63,11 +65,12 @@ def main():
         records.append({
             'ID': row['ID'],
             'lexeme': lexeme,
+            'mps': mps,
             'original_form': original_form,
             'partner_form': partner_form,
             'orig_sentence': orig_sentence,
             'artificial_sentence': artificial_sentence,
-            'pair_label': f"{original_form}->{partner_form}",
+            'pair_label': f"{original_form}->{partner_form} ({mps})",
             'target_word': original_form
         })
 
@@ -154,19 +157,20 @@ def main():
             for i in range(n_dim):
                 plot_df[f'{name.lower()}{i+1}_{n_dim}d'] = reduced[:,i]
             # Plot
+            hover_fields = ['pair_label', 'mps', 'orig_sentence', 'artificial_sentence']
             if n_dim == 2:
                 fig = px.scatter(
                     plot_df,
                     x=f'{name.lower()}1_{n_dim}d', y=f'{name.lower()}2_{n_dim}d',
                     color='lexeme',
-                    hover_data=['pair_label', 'orig_sentence', 'artificial_sentence']
+                    hover_data=hover_fields
                 )
             else:
                 fig = px.scatter_3d(
                     plot_df,
                     x=f'{name.lower()}1_{n_dim}d', y=f'{name.lower()}2_{n_dim}d', z=f'{name.lower()}3_{n_dim}d',
                     color='lexeme',
-                    hover_data=['pair_label', 'orig_sentence', 'artificial_sentence']
+                    hover_data=hover_fields
                 )
             fig.update_layout(title=f"Delta Embeddings ({name}, {n_dim}D)")
             html_path = f"docs/modernbert_{name}_{n_dim}D.html"
