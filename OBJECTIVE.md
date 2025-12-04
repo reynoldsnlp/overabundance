@@ -20,8 +20,9 @@ the string inside the `<b>` tags.
 ## Method
 
 Every original target word has a partner (this can be deduced by comparing all
-`form` values that share the same `lexeme`). By replacing the original target
-with its partner, we create an `artificial` target.
+`form` values that share the same `lexeme`, but only within the same `mps`). By
+replacing the original target with its partner, we create an `artificial`
+target.
 
 So given an original text `Well, I've <b>ate</b> the biscuits`, we derive the
 following two sentences to pass into the transformer (separately):
