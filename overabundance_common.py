@@ -405,7 +405,9 @@ def write_tokens_per_word_summary(
 
     Produces two tables:
     1) Summary stats across word types (mean/median/mode tokens-per-word).
-    2) Per-word table of (word, tokenization, token_count).
+    for lexeme, recs in sorted(lexeme_to_records.items(), key=lambda kv: kv[0]):
+        if len(recs) < 2:
+            continue
 
     Note: Within a model, a word should generally be tokenized consistently.
     If multiple tokenizations are observed (e.g., whitespace quirks), we report
@@ -630,6 +632,7 @@ def write_visualizations(
     slug: str,
     docs_dir: str = "docs",
     filename_prefix: Optional[str] = None,
+    reducers_to_run: Optional[List[str]] = None,
 ) -> List[str]:
     import numpy as np
     import pandas as pd
@@ -737,6 +740,9 @@ def write_visualizations(
         "UMAP": lambda n, n_neighbors: umap.UMAP(n_components=n, n_neighbors=n_neighbors, random_state=42),
     }
 
+    if reducers_to_run is not None:
+        reducers = {k: v for k, v in reducers.items() if k in set(reducers_to_run)}
+
     written: List[str] = []
 
     custom_data_fields = [
@@ -770,6 +776,9 @@ def write_visualizations(
                 perplexity = min(50.0, float(n_samples - 1))
                 reduced = reducer(n_components=n_dim, random_state=42, perplexity=perplexity).fit_transform(deltas)
             elif name == "PCA":
+                if n_samples < n_dim:
+                    print(f"Skipping PCA ({n_dim}D): need at least {n_dim} samples, have {n_samples}.")
+                    continue
                 reduced = reducer(n_components=n_dim).fit_transform(deltas)
             else:
                 if n_samples < 3:
@@ -808,6 +817,54 @@ def write_visualizations(
             print(f"Saved {html_path}")
 
     return written
+
+
+def write_lexeme_visualizations(
+    embed_records: List[Dict[str, Any]],
+    *,
+    model_name: str,
+    slug: str,
+    docs_dir: str = "docs",
+    reducers_to_run: Optional[List[str]] = None,
+) -> str:
+    """Write per-lexeme visualizations under docs/<slug>_lexemes/.
+
+    These visualizations are computed *within* each lexeme subset (i.e., the
+    dimensionality reduction is not shared across the full dataset).
+    """
+
+    # Default to PCA-only: fast and deterministic per-lexeme.
+    if reducers_to_run is None:
+        reducers_to_run = ["PCA"]
+
+    out_root = os.path.join(docs_dir, f"{slug}_lexemes")
+    os.makedirs(out_root, exist_ok=True)
+
+    lexeme_to_records: Dict[str, List[Dict[str, Any]]] = {}
+    for rec in embed_records:
+        lex = rec.get("lexeme")
+        if not isinstance(lex, str) or not lex:
+            continue
+        lexeme_to_records.setdefault(lex, []).append(rec)
+
+    for lexeme, recs in sorted(lexeme_to_records.items(), key=lambda kv: kv[0]):
+        lex_stub = model_slug(lexeme)
+        lex_dir = os.path.join(out_root, lex_stub)
+        os.makedirs(lex_dir, exist_ok=True)
+
+        # Use lexeme-specific prefix within the lexeme directory.
+        write_visualizations(
+            recs,
+            model_name=model_name,
+            slug=slug,
+            docs_dir=lex_dir,
+            filename_prefix=lex_stub,
+            reducers_to_run=reducers_to_run,
+        )
+        generate_index_html(lex_dir)
+
+    generate_index_html(out_root)
+    return out_root
 
 
 def generate_index_html(folder: str) -> None:

@@ -54,6 +54,7 @@ def main() -> None:
             common.write_visualizations(embed_records, model_name=model_name, slug=slug, docs_dir="docs")
             common.write_tokens_per_word_summary(embed_records, model_slug=slug, docs_dir="docs")
             common.write_skipped_html([], model_slug=slug, docs_dir="docs")
+            common.write_lexeme_visualizations(embed_records, model_name=model_name, slug=slug, docs_dir="docs")
             common.update_docs_indexes("docs")
             print("Updated docs indexes (cache-only run).")
             return
@@ -103,6 +104,7 @@ def main() -> None:
     common.write_visualizations(embed_records, model_name=model_name, slug=slug, docs_dir="docs")
     common.write_tokens_per_word_summary(embed_records, model_slug=slug, docs_dir="docs")
     common.write_skipped_html(skipped_rows, model_slug=slug, docs_dir="docs")
+    common.write_lexeme_visualizations(embed_records, model_name=model_name, slug=slug, docs_dir="docs")
     common.update_docs_indexes("docs")
     print("Updated docs indexes.")
 
