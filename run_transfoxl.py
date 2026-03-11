@@ -50,7 +50,7 @@ def main() -> None:
         cache = common.load_cache(cache_path)
         missing = [r for r in records if r.get("cache_key") not in cache or cache[r.get("cache_key")].get("delta") is None]
         if not missing:
-            embed_records = [cache[r["cache_key"]] for r in records]
+            embed_records = common.merge_cached_records(records, cache)
             common.write_visualizations(embed_records, model_name=model_name, slug=slug, docs_dir="docs")
             common.write_tokens_per_word_summary(embed_records, model_slug=slug, docs_dir="docs")
             common.write_skipped_html([], model_slug=slug, docs_dir="docs")

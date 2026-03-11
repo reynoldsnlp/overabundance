@@ -73,6 +73,13 @@ def deps_only_report(*, extra_imports: Iterable[str] = ()) -> None:
 
 def load_records(*, max_records: int = 0, tsv_path: str = "flexemes.tsv") -> List[Dict[str, Any]]:
     df = load_flexemes_tsv(tsv_path)
+    meaning_cols = ["meaning_index", "Meaning index", "meaning", "Meaning"]
+    if not any(col in df.columns for col in meaning_cols):
+        print("Warning: TSV missing meaning columns; meaning colors/tooltips will be empty.")
+    else:
+        present = [col for col in meaning_cols if col in df.columns]
+        if present and df[present].isna().all().all():
+            print("Warning: TSV has meaning columns but all values are empty.")
     records = build_records(df)
     if max_records and max_records > 0:
         return records[:max_records]
@@ -219,7 +226,17 @@ def extract_bold(text: str) -> Optional[str]:
 
 
 def build_records(df) -> List[Dict[str, Any]]:
+    import pandas as pd
+
     lexeme_mps_forms = df.groupby(["lexeme", "mps"])["form"].unique().to_dict()
+
+    def _optional(row, *keys):
+        for key in keys:
+            if key in row.index:
+                val = row.get(key)
+                if pd.notna(val):
+                    return val
+        return None
 
     records: List[Dict[str, Any]] = []
     for idx, row in df.iterrows():
@@ -251,6 +268,8 @@ def build_records(df) -> List[Dict[str, Any]]:
                 "cache_key": f"row:{int(idx)}",
                 "lexeme": lexeme,
                 "mps": mps,
+                "meaning_index": _optional(row, "meaning_index", "Meaning index", "meaning index"),
+                "meaning": _optional(row, "meaning", "Meaning"),
                 "original_form": original_form,
                 "partner_form": partner_form,
                 "orig_sentence": orig_sentence,
@@ -300,6 +319,25 @@ def load_cache(cache_path: str) -> Dict[Any, Dict[str, Any]]:
                 cache_key = item.get("ID")
             cache[cache_key] = item
     return cache
+
+
+def merge_cached_records(
+    records: List[Dict[str, Any]],
+    cache: Dict[Any, Dict[str, Any]],
+) -> List[Dict[str, Any]]:
+    """Return cached records with current metadata merged in."""
+
+    merged: List[Dict[str, Any]] = []
+    for rec in records:
+        cache_key = rec.get("cache_key", rec.get("ID"))
+        cached = cache.get(cache_key)
+        if cached is None:
+            continue
+        for k, v in rec.items():
+            if cached.get(k) is None:
+                cached[k] = v
+        merged.append(cached)
+    return merged
 
 
 def compute_delta_records(
@@ -633,6 +671,7 @@ def write_visualizations(
     docs_dir: str = "docs",
     filename_prefix: Optional[str] = None,
     reducers_to_run: Optional[List[str]] = None,
+    color_by: Optional[str] = None,
 ) -> List[str]:
     import numpy as np
     import pandas as pd
@@ -662,6 +701,20 @@ def write_visualizations(
         plot_df["art_tokenization"] = plot_df["art_tokens"].apply(_tok_str)
     else:
         plot_df["art_tokenization"] = None
+
+    if "meaning_index" not in plot_df.columns:
+        plot_df["meaning_index"] = None
+    if "meaning" not in plot_df.columns:
+        plot_df["meaning"] = None
+
+    def _meaning_index_label(value: Any) -> Optional[str]:
+        if value is None:
+            return None
+        if isinstance(value, float) and np.isnan(value):
+            return None
+        return str(value)
+
+    plot_df["meaning_index_label"] = plot_df["meaning_index"].apply(_meaning_index_label)
 
     def _word_summary(word, tokenization, token_count) -> str:
         w = "" if word is None else str(word)
@@ -718,6 +771,7 @@ def write_visualizations(
         lambda r: _wrap_for_hover(_mark_target(r.get("artificial_sentence"), r.get("partner_form"))),
         axis=1,
     )
+    plot_df["meaning_hover"] = plot_df["meaning"].apply(_wrap_for_hover)
 
     def _pair_label_tokenized(row):
         left_tok = row.get("orig_tokenization")
@@ -748,6 +802,8 @@ def write_visualizations(
     custom_data_fields = [
         "lexeme",
         "mps",
+        "meaning_index",
+        "meaning_hover",
         "original_form_hover",
         "partner_form_hover",
         "orig_sentence_hover",
@@ -757,15 +813,23 @@ def write_visualizations(
     hovertemplate = (
         "<b>%{customdata[0]}</b><br>"
         "mps: %{customdata[1]}<br>"
-        "original: %{customdata[2]}<br>"
-        "partner: %{customdata[3]}<br>"
+        "meaning_index: %{customdata[2]}<br>"
+        "meaning: %{customdata[3]}<br>"
+        "original: %{customdata[4]}<br>"
+        "partner: %{customdata[5]}<br>"
         "<br>"
-        "orig sentence: %{customdata[4]}<br>"
-        "art sentence: %{customdata[5]}"
+        "orig sentence: %{customdata[6]}<br>"
+        "art sentence: %{customdata[7]}"
         "<extra></extra>"
     )
 
     prefix = filename_prefix or slug
+
+    color_column = color_by or "lexeme"
+    if color_column == "meaning_index":
+        color_column = "meaning_index_label"
+    if color_column not in plot_df.columns or plot_df[color_column].isna().all():
+        color_column = "lexeme"
 
     for name, reducer in reducers.items():
         for n_dim in [2, 3]:
@@ -795,7 +859,7 @@ def write_visualizations(
                     plot_df,
                     x=f"{name.lower()}1_{n_dim}d",
                     y=f"{name.lower()}2_{n_dim}d",
-                    color="lexeme",
+                    color=color_column,
                     custom_data=custom_data_fields,
                 )
             else:
@@ -804,7 +868,7 @@ def write_visualizations(
                     x=f"{name.lower()}1_{n_dim}d",
                     y=f"{name.lower()}2_{n_dim}d",
                     z=f"{name.lower()}3_{n_dim}d",
-                    color="lexeme",
+                    color=color_column,
                     custom_data=custom_data_fields,
                 )
 
@@ -860,6 +924,7 @@ def write_lexeme_visualizations(
             docs_dir=lex_dir,
             filename_prefix=lex_stub,
             reducers_to_run=reducers_to_run,
+            color_by="meaning_index",
         )
         generate_index_html(lex_dir)
 
