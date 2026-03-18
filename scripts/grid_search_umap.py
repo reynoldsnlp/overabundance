@@ -60,7 +60,7 @@ MODELS: List[ModelSpec] = [
 
 
 def _load_embed_records(spec: ModelSpec, *, max_records: int = 0) -> Tuple[List[Dict[str, Any]], int]:
-    cache_path = f"delta_cache_{spec.stub}.jsonl"
+    cache_path = f"head_embed_cache_{spec.stub}.jsonl"
     if not os.path.exists(cache_path):
         raise FileNotFoundError(
             f"Missing cache file {cache_path}. Run the corresponding model runner first to populate it."
@@ -74,13 +74,19 @@ def _load_embed_records(spec: ModelSpec, *, max_records: int = 0) -> Tuple[List[
     for rec in records:
         key = rec.get("cache_key")
         item = cache.get(key)
-        if item is None or item.get("delta") is None:
+        if item is None:
             missing += 1
             continue
+        vec = common.select_record_embedding(item, embedding_source="delta")
+        if vec is None:
+            missing += 1
+            continue
+        item = dict(item)
+        item["delta"] = vec
         embed_records.append(item)
 
     if not embed_records:
-        raise RuntimeError(f"No cached deltas found in {cache_path}.")
+        raise RuntimeError(f"No usable cached vectors found in {cache_path}.")
 
     return embed_records, missing
 
@@ -228,7 +234,7 @@ def main() -> None:
         "--pca-dims",
         type=int,
         default=50,
-        help="Reduce deltas to this many dims with PCA before UMAP (speed).",
+        help="Reduce embedding vectors to this many dims with PCA before UMAP (speed).",
     )
     parser.add_argument(
         "--models",
@@ -305,7 +311,7 @@ def main() -> None:
             cell_imgs=cell_imgs,
             cell_params=cell_params,
             note_lines=[
-                f"points: {len(embed_records)} (missing cached deltas: {missing})",
+                f"points: {len(embed_records)} (missing cached vectors: {missing})",
                 f"PCA pre-reduction: {pca_dims} dims",
                 f"n_neighbors grid spans 2..N/4 (N={n})",
             ],

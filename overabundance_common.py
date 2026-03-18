@@ -35,7 +35,34 @@ def parse_runner_args() -> argparse.Namespace:
         default=0,
         help="If set, only process the first N records (useful for quick smoke tests).",
     )
+    parser.add_argument(
+        "--embedding-source",
+        choices=["delta", "delta_from_raw", "head", "head_delta", "head_delta_from_raw", "orig", "art", "orig_head", "art_head"],
+        default="delta",
+        help="Embedding source for downstream visualization and analysis (delta, raw contextual, or head-based).",
+    )
+    parser.add_argument(
+        "--head-indices",
+        type=str,
+        default="",
+        help="Comma-separated head indices for --embedding-source=head (default: all heads).",
+    )
     return parser.parse_args()
+
+
+def parse_head_indices(raw: str) -> Optional[List[int]]:
+    if raw is None:
+        return None
+    s = raw.strip()
+    if not s:
+        return None
+    out: List[int] = []
+    for piece in s.split(","):
+        piece = piece.strip()
+        if not piece:
+            continue
+        out.append(int(piece))
+    return out or None
 
 
 def _version_of(module) -> str:
@@ -87,8 +114,10 @@ def load_records(*, max_records: int = 0, tsv_path: str = "flexemes.tsv") -> Lis
 
 
 def setup_cache(*, model_name: str, cache_slug: str) -> tuple[str, bool]:
-    cache_path = f"delta_cache_{cache_slug}.jsonl"
+    cache_path = f"head_embed_cache_{cache_slug}.jsonl"
+    maybe_move_legacy_cache(f"delta_cache_{cache_slug}.jsonl", cache_path)
     maybe_move_legacy_cache("delta_cache.jsonl", cache_path)
+    maybe_move_legacy_cache("head_embed_cache.jsonl", cache_path)
     use_cache = prompt_cache_choice(cache_path, model_name)
     return cache_path, use_cache
 
@@ -171,6 +200,142 @@ def hf_get_embedding(tokenizer, model, sentence: str, word: str):
 
     word_embeds = hidden_states[word_start : word_start + len(word_tokens)].mean(dim=0)
     return word_embeds.cpu().numpy()
+
+
+def hf_get_embedding_with_heads(tokenizer, model, sentence: str, word: str):
+    """Extract both full contextual embedding and per-head slices.
+
+    Returns (embedding, heads) where embedding is a NumPy vector and heads is a
+    list of NumPy vectors (or None if head slicing is unavailable).
+    """
+
+    import torch
+
+    tokens = tokenizer(sentence, return_tensors="pt")
+    input_ids = tokens["input_ids"][0]
+    encoding_tokens: List[str] = tokenizer.convert_ids_to_tokens(input_ids)
+
+    located = _hf_locate_target_in_encoding(tokenizer, encoding_tokens, word)
+    if located is None:
+        return None
+    word_start, word_tokens = located
+
+    with torch.no_grad():
+        outputs = model(**tokens)
+        hidden = getattr(outputs, "last_hidden_state", None)
+        if hidden is None:
+            hidden = outputs[0]
+        hidden_states = hidden[0]
+
+    word_embeds = hidden_states[word_start : word_start + len(word_tokens)].mean(dim=0)
+    embedding = word_embeds.cpu().numpy()
+
+    n_heads = getattr(getattr(model, "config", None), "num_attention_heads", None)
+    if not isinstance(n_heads, int) or n_heads <= 0:
+        return embedding, None
+
+    hidden_dim = int(word_embeds.shape[0])
+    if hidden_dim % n_heads != 0:
+        return embedding, None
+
+    head_dim = hidden_dim // n_heads
+    heads = word_embeds.reshape(n_heads, head_dim)
+    return embedding, [heads[i].cpu().numpy() for i in range(n_heads)]
+
+
+def hf_get_embedding_heads(tokenizer, model, sentence: str, word: str) -> Optional[List[object]]:
+    """Extract per-head target embeddings by slicing hidden dimensions.
+
+    This uses equal-size hidden-dimension slices based on num_attention_heads.
+    """
+
+    out = hf_get_embedding_with_heads(tokenizer, model, sentence, word)
+    if out is None:
+        return None
+    _, heads = out
+    return heads
+
+
+def _as_np_vector(x):
+    import numpy as np
+
+    if not isinstance(x, list):
+        return None
+    return np.asarray(x, dtype=float)
+
+
+def _as_np_heads(x):
+    import numpy as np
+
+    if not isinstance(x, list) or not x:
+        return None
+    heads = []
+    for h in x:
+        if not isinstance(h, list):
+            return None
+        heads.append(np.asarray(h, dtype=float))
+    return heads
+
+
+def select_record_embedding(
+    rec: Dict[str, Any],
+    *,
+    embedding_source: str = "delta",
+    head_indices: Optional[List[int]] = None,
+):
+    import numpy as np
+
+    orig_heads = _as_np_heads(rec.get("orig_head_embeddings"))
+    art_heads = _as_np_heads(rec.get("art_head_embeddings"))
+
+    def _concat_heads(heads):
+        if heads is None or not heads:
+            return None
+        return np.concatenate(heads, axis=0)
+
+    def _valid_indices(n: int) -> List[int]:
+        return list(range(n)) if head_indices is None else [i for i in head_indices if 0 <= i < n]
+
+    if embedding_source == "orig":
+        return _concat_heads(orig_heads)
+    if embedding_source == "art":
+        return _concat_heads(art_heads)
+
+    if embedding_source in {"delta", "delta_from_raw"}:
+        orig = _concat_heads(orig_heads)
+        art = _concat_heads(art_heads)
+        if orig is None or art is None:
+            return None
+        return orig - art
+
+    if embedding_source in {"orig_head", "art_head"}:
+        src_heads = orig_heads if embedding_source == "orig_head" else art_heads
+        if src_heads is None:
+            return None
+        idxs = _valid_indices(len(src_heads))
+        if not idxs:
+            return None
+        return np.mean([src_heads[i] for i in idxs], axis=0)
+
+    if embedding_source in {"head", "head_delta", "head_delta_from_raw"}:
+        if orig_heads is None or art_heads is None or len(orig_heads) != len(art_heads):
+            return None
+        idxs = _valid_indices(len(orig_heads))
+        if not idxs:
+            return None
+        deltas = [orig_heads[i] - art_heads[i] for i in idxs]
+        return np.mean(deltas, axis=0)
+
+    return None
+
+
+def cache_has_contextual_fields(cached: Dict[str, Any]) -> bool:
+    """Whether cache entry contains raw per-head contextual embeddings."""
+
+    def _is_heads(x):
+        return isinstance(x, list) and len(x) > 0 and all(isinstance(h, list) and len(h) > 0 for h in x)
+
+    return _is_heads(cached.get("orig_head_embeddings")) and _is_heads(cached.get("art_head_embeddings"))
 
 
 def hf_target_tokens(tokenizer, sentence: str, word: str) -> Optional[List[str]]:
@@ -349,6 +514,7 @@ def compute_delta_records(
     desc: str,
     get_token_count: Optional[Callable[[str, str], Optional[int]]] = None,
     get_tokenization: Optional[Callable[[str, str], Optional[List[str]]]] = None,
+    get_head_embeddings: Optional[Callable[[str, str], Optional[List[object]]]] = None,
     on_skip: Optional[Callable[[Dict[str, Any], str], None]] = None,
 ) -> List[Dict[str, Any]]:
     import json
@@ -357,12 +523,14 @@ def compute_delta_records(
 
     cache: Dict[Any, Dict[str, Any]] = load_cache(cache_path) if use_cache else {}
     cache_out = None
+    cache_dirty = False
 
     out: List[Dict[str, Any]] = []
     for rec in tqdm(records, desc=desc):
         cache_key = rec.get("cache_key", rec.get("ID"))
         if use_cache and cache_key in cache:
             cached = cache[cache_key]
+            before_cached = dict(cached)
             # Ensure cached records include the current record metadata.
             # This makes plots robust even if the cache schema changes.
             for k, v in rec.items():
@@ -383,35 +551,37 @@ def compute_delta_records(
                     cached["orig_token_count"] = get_token_count(rec["orig_sentence"], rec["original_form"])
                 if cached.get("art_token_count") is None:
                     cached["art_token_count"] = get_token_count(rec["artificial_sentence"], rec["partner_form"])
+
+            need_heads = (
+                get_head_embeddings is not None
+                and (
+                    cached.get("orig_head_embeddings") is None
+                    or cached.get("art_head_embeddings") is None
+                )
+            )
+            if need_heads:
+                try:
+                    orig_heads = get_head_embeddings(rec["orig_sentence"], rec["original_form"])
+                    art_heads = get_head_embeddings(rec["artificial_sentence"], rec["partner_form"])
+                except Exception:
+                    orig_heads = None
+                    art_heads = None
+                if isinstance(orig_heads, list) and isinstance(art_heads, list) and len(orig_heads) == len(art_heads):
+                    cached["orig_head_embeddings"] = [h.tolist() for h in orig_heads]
+                    cached["art_head_embeddings"] = [h.tolist() for h in art_heads]
+
+            # Compact legacy cache entries to the head-only schema.
+            for obsolete_key in ["orig_embedding", "art_embedding", "delta", "head_deltas"]:
+                if obsolete_key in cached:
+                    cached.pop(obsolete_key, None)
+
+            if cached != before_cached:
+                cache_dirty = True
+
             out.append(cached)
             continue
 
-        try:
-            orig_emb = get_embedding(rec["orig_sentence"], rec["original_form"])
-        except Exception as e:
-            if on_skip is not None:
-                on_skip(rec, f"orig_exception:{type(e).__name__}:{e}")
-            continue
-
-        try:
-            art_emb = get_embedding(rec["artificial_sentence"], rec["partner_form"])
-        except Exception as e:
-            if on_skip is not None:
-                on_skip(rec, f"art_exception:{type(e).__name__}:{e}")
-            continue
-
-        if orig_emb is None:
-            if on_skip is not None:
-                on_skip(rec, "orig_none")
-            continue
-
-        if art_emb is None:
-            if on_skip is not None:
-                on_skip(rec, "art_none")
-            continue
-
-        delta = orig_emb - art_emb
-        out_rec = {**rec, "delta": delta.tolist()}
+        out_rec = {**rec}
         if get_tokenization is not None:
             out_rec["orig_tokens"] = get_tokenization(rec["orig_sentence"], rec["original_form"])
             out_rec["art_tokens"] = get_tokenization(rec["artificial_sentence"], rec["partner_form"])
@@ -421,6 +591,33 @@ def compute_delta_records(
         if get_tokenization is None and get_token_count is not None:
             out_rec["orig_token_count"] = get_token_count(rec["orig_sentence"], rec["original_form"])
             out_rec["art_token_count"] = get_token_count(rec["artificial_sentence"], rec["partner_form"])
+
+        if get_head_embeddings is None:
+            if on_skip is not None:
+                on_skip(rec, "head_embeddings_unavailable")
+            continue
+
+        try:
+            orig_heads = get_head_embeddings(rec["orig_sentence"], rec["original_form"])
+            art_heads = get_head_embeddings(rec["artificial_sentence"], rec["partner_form"])
+        except Exception as e:
+            if on_skip is not None:
+                on_skip(rec, f"head_exception:{type(e).__name__}:{e}")
+            continue
+
+        if not isinstance(orig_heads, list) or not isinstance(art_heads, list):
+            if on_skip is not None:
+                on_skip(rec, "head_none")
+            continue
+
+        if len(orig_heads) != len(art_heads):
+            if on_skip is not None:
+                on_skip(rec, "head_length_mismatch")
+            continue
+
+        out_rec["orig_head_embeddings"] = [h.tolist() for h in orig_heads]
+        out_rec["art_head_embeddings"] = [h.tolist() for h in art_heads]
+
         out.append(out_rec)
 
         if cache_out is None:
@@ -429,6 +626,13 @@ def compute_delta_records(
 
     if cache_out:
         cache_out.close()
+
+    if use_cache and cache_dirty:
+        import json
+
+        with open(cache_path, "w", encoding="utf-8") as f:
+            for item in cache.values():
+                f.write(json.dumps(item) + "\n")
 
     return out
 
@@ -672,6 +876,8 @@ def write_visualizations(
     filename_prefix: Optional[str] = None,
     reducers_to_run: Optional[List[str]] = None,
     color_by: Optional[str] = None,
+    embedding_source: str = "delta",
+    head_indices: Optional[List[int]] = None,
 ) -> List[str]:
     import numpy as np
     import pandas as pd
@@ -685,7 +891,20 @@ def write_visualizations(
 
     os.makedirs(docs_dir, exist_ok=True)
 
-    plot_df = pd.DataFrame(embed_records)
+    filtered_records: List[Dict[str, Any]] = []
+    vectors = []
+    for rec in embed_records:
+        vec = select_record_embedding(rec, embedding_source=embedding_source, head_indices=head_indices)
+        if vec is None:
+            continue
+        filtered_records.append(rec)
+        vectors.append(vec)
+
+    if not filtered_records:
+        print(f"No records available for embedding source '{embedding_source}'; skipping plots.")
+        return []
+
+    plot_df = pd.DataFrame(filtered_records)
 
     def _tok_str(tokens):
         if isinstance(tokens, list) and all(isinstance(x, str) for x in tokens) and tokens:
@@ -785,7 +1004,7 @@ def write_visualizations(
 
     # Override pair_label in the plotting DF so hover shows tokenization via hyphens.
     plot_df["pair_label"] = plot_df.apply(_pair_label_tokenized, axis=1)
-    deltas = np.stack(plot_df["delta"].values)
+    deltas = np.stack(vectors)
     n_samples = int(deltas.shape[0])
 
     reducers = {
@@ -872,7 +1091,11 @@ def write_visualizations(
                     custom_data=custom_data_fields,
                 )
 
-            fig.update_layout(title=f"Delta Embeddings ({model_name}; {name}, {n_dim}D)")
+            is_head_source = embedding_source in {"head", "head_delta", "head_delta_from_raw", "orig_head", "art_head"}
+            title_suffix = embedding_source
+            if is_head_source and head_indices:
+                title_suffix = f"{embedding_source}:{','.join(str(i) for i in head_indices)}"
+            fig.update_layout(title=f"Delta Embeddings ({model_name}; {name}, {n_dim}D; {title_suffix})")
             fig.update_layout(hoverlabel=dict(align="left"))
             fig.update_traces(hovertemplate=hovertemplate)
             html_path = os.path.join(docs_dir, f"{prefix}_{name}_{n_dim}D.html")
@@ -890,6 +1113,8 @@ def write_lexeme_visualizations(
     slug: str,
     docs_dir: str = "docs",
     reducers_to_run: Optional[List[str]] = None,
+    embedding_source: str = "delta",
+    head_indices: Optional[List[int]] = None,
 ) -> str:
     """Write per-lexeme visualizations under docs/<slug>_lexemes/.
 
@@ -925,6 +1150,8 @@ def write_lexeme_visualizations(
             filename_prefix=lex_stub,
             reducers_to_run=reducers_to_run,
             color_by="meaning_index",
+            embedding_source=embedding_source,
+            head_indices=head_indices,
         )
         generate_index_html(lex_dir)
 

@@ -30,6 +30,7 @@ import overabundance_common as common
 
 def main() -> None:
     args = common.parse_runner_args()
+    head_indices = common.parse_head_indices(args.head_indices)
 
     common.setup_environment()
 
@@ -48,13 +49,34 @@ def main() -> None:
 
     if use_cache:
         cache = common.load_cache(cache_path)
-        missing = [r for r in records if r.get("cache_key") not in cache or cache[r.get("cache_key")].get("delta") is None]
+        missing = [
+            r
+            for r in records
+            if (
+                r.get("cache_key") not in cache
+                or not common.cache_has_contextual_fields(cache[r.get("cache_key")])
+            )
+        ]
         if not missing:
             embed_records = common.merge_cached_records(records, cache)
-            common.write_visualizations(embed_records, model_name=model_name, slug=slug, docs_dir="docs")
+            common.write_visualizations(
+                embed_records,
+                model_name=model_name,
+                slug=slug,
+                docs_dir="docs",
+                embedding_source=args.embedding_source,
+                head_indices=head_indices,
+            )
             common.write_tokens_per_word_summary(embed_records, model_slug=slug, docs_dir="docs")
             common.write_skipped_html([], model_slug=slug, docs_dir="docs")
-            common.write_lexeme_visualizations(embed_records, model_name=model_name, slug=slug, docs_dir="docs")
+            common.write_lexeme_visualizations(
+                embed_records,
+                model_name=model_name,
+                slug=slug,
+                docs_dir="docs",
+                embedding_source=args.embedding_source,
+                head_indices=head_indices,
+            )
             common.update_docs_indexes("docs")
             print("Updated docs indexes (cache-only run).")
             return
@@ -69,8 +91,27 @@ def main() -> None:
     model = AutoModel.from_pretrained(model_name)
     model.eval()
 
+    contextual_cache = {}
+
+    def get_contextual(sentence: str, word: str):
+        key = (sentence, word)
+        if key not in contextual_cache:
+            contextual_cache[key] = common.hf_get_embedding_with_heads(tokenizer, model, sentence, word)
+        return contextual_cache[key]
+
     def get_embedding(sentence: str, word: str):
-        return common.hf_get_embedding(tokenizer, model, sentence, word)
+        out = get_contextual(sentence, word)
+        if out is None:
+            return None
+        emb, _ = out
+        return emb
+
+    def get_head_embeddings(sentence: str, word: str):
+        out = get_contextual(sentence, word)
+        if out is None:
+            return None
+        _, heads = out
+        return heads
 
     skipped_rows = []
 
@@ -94,6 +135,7 @@ def main() -> None:
         use_cache=use_cache,
         desc=f"Extracting embeddings ({model_name})",
         get_tokenization=lambda s, w: common.hf_target_tokens(tokenizer, s, w),
+        get_head_embeddings=get_head_embeddings,
         on_skip=log_skip,
     )
 
@@ -101,10 +143,24 @@ def main() -> None:
         print("No embeddings produced; skipping plots.")
         return
 
-    common.write_visualizations(embed_records, model_name=model_name, slug=slug, docs_dir="docs")
+    common.write_visualizations(
+        embed_records,
+        model_name=model_name,
+        slug=slug,
+        docs_dir="docs",
+        embedding_source=args.embedding_source,
+        head_indices=head_indices,
+    )
     common.write_tokens_per_word_summary(embed_records, model_slug=slug, docs_dir="docs")
     common.write_skipped_html(skipped_rows, model_slug=slug, docs_dir="docs")
-    common.write_lexeme_visualizations(embed_records, model_name=model_name, slug=slug, docs_dir="docs")
+    common.write_lexeme_visualizations(
+        embed_records,
+        model_name=model_name,
+        slug=slug,
+        docs_dir="docs",
+        embedding_source=args.embedding_source,
+        head_indices=head_indices,
+    )
     common.update_docs_indexes("docs")
     print("Updated docs indexes.")
 
