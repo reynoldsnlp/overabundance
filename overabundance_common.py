@@ -891,6 +891,15 @@ def write_visualizations(
 
     os.makedirs(docs_dir, exist_ok=True)
 
+    def _embedding_file_tag(source: str, heads: Optional[List[int]]) -> str:
+        """Return a stable filename-safe embedding-source tag."""
+
+        if source in {"delta", "orig", "art"}:
+            return source
+        if heads:
+            return f"{source}_{'-'.join(str(i) for i in heads)}"
+        return source
+
     filtered_records: List[Dict[str, Any]] = []
     vectors = []
     for rec in embed_records:
@@ -1018,31 +1027,53 @@ def write_visualizations(
 
     written: List[str] = []
 
-    custom_data_fields = [
-        "lexeme",
-        "mps",
-        "meaning_index",
-        "meaning_hover",
-        "original_form_hover",
-        "partner_form_hover",
-        "orig_sentence_hover",
-        "artificial_sentence_hover",
-    ]
+    if embedding_source == "orig":
+        custom_data_fields = [
+            "lexeme",
+            "mps",
+            "meaning_index",
+            "meaning_hover",
+            "original_form_hover",
+            "orig_sentence_hover",
+        ]
 
-    hovertemplate = (
-        "<b>%{customdata[0]}</b><br>"
-        "mps: %{customdata[1]}<br>"
-        "meaning_index: %{customdata[2]}<br>"
-        "meaning: %{customdata[3]}<br>"
-        "original: %{customdata[4]}<br>"
-        "partner: %{customdata[5]}<br>"
-        "<br>"
-        "orig sentence: %{customdata[6]}<br>"
-        "art sentence: %{customdata[7]}"
-        "<extra></extra>"
-    )
+        hovertemplate = (
+            "<b>%{customdata[0]}</b><br>"
+            "mps: %{customdata[1]}<br>"
+            "meaning_index: %{customdata[2]}<br>"
+            "meaning: %{customdata[3]}<br>"
+            "original: %{customdata[4]}<br>"
+            "<br>"
+            "orig sentence: %{customdata[5]}"
+            "<extra></extra>"
+        )
+    else:
+        custom_data_fields = [
+            "lexeme",
+            "mps",
+            "meaning_index",
+            "meaning_hover",
+            "original_form_hover",
+            "partner_form_hover",
+            "orig_sentence_hover",
+            "artificial_sentence_hover",
+        ]
+
+        hovertemplate = (
+            "<b>%{customdata[0]}</b><br>"
+            "mps: %{customdata[1]}<br>"
+            "meaning_index: %{customdata[2]}<br>"
+            "meaning: %{customdata[3]}<br>"
+            "original: %{customdata[4]}<br>"
+            "partner: %{customdata[5]}<br>"
+            "<br>"
+            "orig sentence: %{customdata[6]}<br>"
+            "art sentence: %{customdata[7]}"
+            "<extra></extra>"
+        )
 
     prefix = filename_prefix or slug
+    source_tag = _embedding_file_tag(embedding_source, head_indices)
 
     color_column = color_by or "lexeme"
     if color_column == "meaning_index":
@@ -1095,10 +1126,10 @@ def write_visualizations(
             title_suffix = embedding_source
             if is_head_source and head_indices:
                 title_suffix = f"{embedding_source}:{','.join(str(i) for i in head_indices)}"
-            fig.update_layout(title=f"Delta Embeddings ({model_name}; {name}, {n_dim}D; {title_suffix})")
+            fig.update_layout(title=f"Embeddings ({model_name}; {name}, {n_dim}D; {title_suffix})")
             fig.update_layout(hoverlabel=dict(align="left"))
             fig.update_traces(hovertemplate=hovertemplate)
-            html_path = os.path.join(docs_dir, f"{prefix}_{name}_{n_dim}D.html")
+            html_path = os.path.join(docs_dir, f"{prefix}_{source_tag}_{name}_{n_dim}D.html")
             fig.write_html(html_path)
             written.append(html_path)
             print(f"Saved {html_path}")
