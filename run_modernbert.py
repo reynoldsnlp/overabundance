@@ -52,23 +52,15 @@ def main() -> None:
         ]
         if not missing:
             embed_records = common.merge_cached_records(records, cache)
-            common.write_visualizations(
+            common.write_visualization_sets(
                 embed_records,
                 model_name=model_name,
                 slug=slug,
                 docs_dir="docs",
-                embedding_source=args.embedding_source,
+                requested_embedding_source=args.embedding_source,
                 head_indices=head_indices,
             )
             common.write_tokens_per_word_summary(embed_records, model_slug=slug, docs_dir="docs")
-            common.write_lexeme_visualizations(
-                embed_records,
-                model_name=model_name,
-                slug=slug,
-                docs_dir="docs",
-                embedding_source=args.embedding_source,
-                head_indices=head_indices,
-            )
             common.update_docs_indexes("docs")
             print("Updated docs indexes (cache-only run).")
             return
@@ -116,23 +108,15 @@ def main() -> None:
         print("No embeddings produced; skipping plots.")
         return
 
-    common.write_visualizations(
+    common.write_visualization_sets(
         embed_records,
         model_name=model_name,
         slug=slug,
         docs_dir="docs",
-        embedding_source=args.embedding_source,
+        requested_embedding_source=args.embedding_source,
         head_indices=head_indices,
     )
     common.write_tokens_per_word_summary(embed_records, model_slug=slug, docs_dir="docs")
-    common.write_lexeme_visualizations(
-        embed_records,
-        model_name=model_name,
-        slug=slug,
-        docs_dir="docs",
-        embedding_source=args.embedding_source,
-        head_indices=head_indices,
-    )
     common.update_docs_indexes("docs")
     print("Updated docs indexes.")
 

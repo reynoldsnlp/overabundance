@@ -1190,6 +1190,46 @@ def write_lexeme_visualizations(
     return out_root
 
 
+def write_visualization_sets(
+    embed_records: List[Dict[str, Any]],
+    *,
+    model_name: str,
+    slug: str,
+    docs_dir: str = "docs",
+    requested_embedding_source: str = "delta",
+    head_indices: Optional[List[int]] = None,
+) -> None:
+    """Write the standard visualization sets for a run.
+
+    Always writes both delta and orig visualizations. If the requested source is
+    different (for example head-based), it is also rendered.
+    """
+
+    sources = ["delta", "orig"]
+    if requested_embedding_source not in sources:
+        sources.append(requested_embedding_source)
+
+    for source in sources:
+        use_heads = source in {"head", "head_delta", "head_delta_from_raw", "orig_head", "art_head"}
+        source_head_indices = head_indices if use_heads else None
+        write_visualizations(
+            embed_records,
+            model_name=model_name,
+            slug=slug,
+            docs_dir=docs_dir,
+            embedding_source=source,
+            head_indices=source_head_indices,
+        )
+        write_lexeme_visualizations(
+            embed_records,
+            model_name=model_name,
+            slug=slug,
+            docs_dir=docs_dir,
+            embedding_source=source,
+            head_indices=source_head_indices,
+        )
+
+
 def generate_index_html(folder: str) -> None:
     items = sorted(os.listdir(folder))
     html_lines = [
