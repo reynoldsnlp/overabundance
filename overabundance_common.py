@@ -1011,8 +1011,25 @@ def write_visualizations(
             return f"{left}->{right}"
         return f"{left}->{right} ({mps})"
 
+    def _pair_marker_role(row, source: str) -> str:
+        left = row.get("original_form")
+        right = row.get("partner_form")
+        if not isinstance(left, str) or not isinstance(right, str) or not left or not right:
+            return "circle"
+
+        left_key = (len(left), left.casefold(), left)
+        right_key = (len(right), right.casefold(), right)
+        circle_word = left if left_key <= right_key else right
+
+        plotted_word = right if source in {"art", "art_head"} else left
+        return "circle" if plotted_word == circle_word else "triangle"
+
     # Override pair_label in the plotting DF so hover shows tokenization via hyphens.
     plot_df["pair_label"] = plot_df.apply(_pair_label_tokenized, axis=1)
+    plot_df["pair_marker_role"] = plot_df.apply(
+        lambda row: _pair_marker_role(row, embedding_source),
+        axis=1,
+    )
     deltas = np.stack(vectors)
     n_samples = int(deltas.shape[0])
 
@@ -1081,6 +1098,68 @@ def write_visualizations(
     if color_column not in plot_df.columns or plot_df[color_column].isna().all():
         color_column = "lexeme"
 
+    def _legend_label_for_row(row) -> Optional[str]:
+        role = row.get("pair_marker_role")
+        if not isinstance(role, str):
+            return None
+
+        meaning_id = row.get("meaning_index_label")
+        show_meaning_id = color_column == "meaning_index_label" and isinstance(meaning_id, str) and meaning_id
+        prefix = f"({meaning_id}) " if show_meaning_id else ""
+
+        if embedding_source == "orig":
+            form = row.get("original_form")
+            lemma = row.get("lexeme")
+            if not isinstance(form, str) or not form or not isinstance(lemma, str) or not lemma:
+                return None
+            return f"{prefix}{form} ({lemma})"
+
+        if embedding_source in {"delta", "delta_from_raw", "head", "head_delta", "head_delta_from_raw"}:
+            orig = row.get("original_form")
+            art = row.get("partner_form")
+            if not isinstance(orig, str) or not orig or not isinstance(art, str) or not art:
+                return None
+            return f"{prefix}{orig} -> {art}"
+
+        return None
+
+    def _rename_legend_traces(fig) -> None:
+        trace_label_map: Dict[tuple[str, str], str] = {}
+        for _, row in plot_df.iterrows():
+            color_value = row.get(color_column)
+            role = row.get("pair_marker_role")
+            if color_value is None or not isinstance(role, str):
+                continue
+            label = _legend_label_for_row(row)
+            if label is None:
+                continue
+            trace_label_map.setdefault((str(color_value), role), label)
+
+        if not trace_label_map:
+            return
+
+        seen_labels: set[str] = set()
+        for trace in fig.data:
+            name = getattr(trace, "name", None)
+            if not isinstance(name, str):
+                continue
+            parts = [part.strip() for part in name.split(",")]
+            if len(parts) < 2:
+                continue
+            key = (parts[0], parts[-1])
+            label = trace_label_map.get(key)
+            if label is None:
+                continue
+            trace.name = label
+            trace.legendgroup = label
+            if label in seen_labels:
+                trace.showlegend = False
+            else:
+                trace.showlegend = True
+                seen_labels.add(label)
+
+        fig.update_layout(legend_title_text="")
+
     for name, reducer in reducers.items():
         for n_dim in [2, 3]:
             if name == "TSNE":
@@ -1104,13 +1183,17 @@ def write_visualizations(
             for i in range(n_dim):
                 plot_df[f"{name.lower()}{i+1}_{n_dim}d"] = reduced[:, i]
 
+            symbol_map = {"circle": "circle", "triangle": "triangle-up" if n_dim == 2 else "diamond"}
+
             if n_dim == 2:
                 fig = px.scatter(
                     plot_df,
                     x=f"{name.lower()}1_{n_dim}d",
                     y=f"{name.lower()}2_{n_dim}d",
                     color=color_column,
+                    symbol="pair_marker_role",
                     custom_data=custom_data_fields,
+                    symbol_map=symbol_map,
                 )
             else:
                 fig = px.scatter_3d(
@@ -1119,8 +1202,12 @@ def write_visualizations(
                     y=f"{name.lower()}2_{n_dim}d",
                     z=f"{name.lower()}3_{n_dim}d",
                     color=color_column,
+                    symbol="pair_marker_role",
                     custom_data=custom_data_fields,
+                    symbol_map=symbol_map,
                 )
+
+            _rename_legend_traces(fig)
 
             is_head_source = embedding_source in {"head", "head_delta", "head_delta_from_raw", "orig_head", "art_head"}
             title_suffix = embedding_source
