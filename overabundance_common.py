@@ -1011,25 +1011,119 @@ def write_visualizations(
             return f"{left}->{right}"
         return f"{left}->{right} ({mps})"
 
-    def _pair_marker_role(row, source: str) -> str:
-        left = row.get("original_form")
-        right = row.get("partner_form")
-        if not isinstance(left, str) or not isinstance(right, str) or not left or not right:
+    form_order_map: Dict[tuple[str, str], Dict[str, int]] = {}
+    for _, row in plot_df.iterrows():
+        lexeme = row.get("lexeme")
+        mps = row.get("mps")
+        if not isinstance(lexeme, str) or not lexeme or not isinstance(mps, str) or not mps:
+            continue
+        forms = {
+            form
+            for form in (row.get("original_form"), row.get("partner_form"))
+            if isinstance(form, str) and form
+        }
+        if not forms:
+            continue
+        key = (lexeme, mps)
+        merged = set(form_order_map.get(key, {}).keys()) | forms
+        ordered = sorted(merged, key=lambda form: (form.casefold(), form))
+        form_order_map[key] = {form: idx for idx, form in enumerate(ordered)}
+
+    lexeme_rank_map: Dict[str, Dict[str, int]] = {}
+    for mps in sorted({str(v) for v in plot_df["mps"].dropna().astype(str).tolist()}):
+        lexemes = sorted(
+            {
+                str(v)
+                for v in plot_df.loc[plot_df["mps"].astype(str) == mps, "lexeme"].dropna().astype(str).tolist()
+                if v
+            }
+        )
+        lexeme_rank_map[mps] = {lexeme: idx for idx, lexeme in enumerate(lexemes)}
+
+    def _open_symbol(base_symbol: str, n_dim: int) -> str:
+        if n_dim == 3 and base_symbol == "cross":
+            return "x"
+        return f"{base_symbol}-open"
+
+    def _orig_marker_symbol(row, n_dim: int) -> str:
+        lexeme = row.get("lexeme")
+        mps = row.get("mps")
+        orig = row.get("original_form")
+        if (
+            not isinstance(lexeme, str)
+            or not lexeme
+            or not isinstance(mps, str)
+            or not mps
+            or not isinstance(orig, str)
+            or not orig
+        ):
             return "circle"
 
-        left_key = (len(left), left.casefold(), left)
-        right_key = (len(right), right.casefold(), right)
-        circle_word = left if left_key <= right_key else right
+        if n_dim == 2:
+            family_pairs = {
+                "pst": [("circle", "square"), ("diamond", "triangle-up")],
+                "ppt": [("cross", "x"), ("star", "hexagram")],
+            }
+        else:
+            family_pairs = {
+                "pst": [("circle", "square")],
+                "ppt": [("diamond", "cross")],
+            }
 
-        plotted_word = right if source in {"art", "art_head"} else left
-        return "circle" if plotted_word == circle_word else "triangle"
+        pairs = family_pairs.get(mps, family_pairs["pst"])
+        lexeme_rank = lexeme_rank_map.get(mps, {}).get(lexeme, 0)
+        pair = pairs[lexeme_rank % len(pairs)]
+        form_idx = form_order_map.get((lexeme, mps), {}).get(orig, 0)
+        return pair[min(form_idx, len(pair) - 1)]
+
+    def _delta_marker_symbol(row, n_dim: int) -> str:
+        lexeme = row.get("lexeme")
+        mps = row.get("mps")
+        orig = row.get("original_form")
+        art = row.get("partner_form")
+        if (
+            not isinstance(lexeme, str)
+            or not lexeme
+            or not isinstance(mps, str)
+            or not mps
+            or not isinstance(orig, str)
+            or not orig
+            or not isinstance(art, str)
+            or not art
+        ):
+            return "circle"
+
+        if n_dim == 2:
+            family = {
+                "pst": ["circle", "square", "diamond", "triangle-up"],
+                "ppt": ["cross", "x", "star", "hexagram"],
+            }
+        else:
+            family = {
+                "pst": ["circle", "square"],
+                "ppt": ["diamond", "cross"],
+            }
+
+        symbols = family.get(mps, family["pst"])
+        lexeme_rank = lexeme_rank_map.get(mps, {}).get(lexeme, 0)
+        base_symbol = symbols[lexeme_rank % len(symbols)]
+
+        form_order = form_order_map.get((lexeme, mps), {})
+        orig_idx = form_order.get(orig, 0)
+        art_idx = form_order.get(art, 1)
+        is_reverse = orig_idx > art_idx
+        if not is_reverse:
+            return base_symbol
+
+        return _open_symbol(base_symbol, n_dim)
+
+    def _marker_symbol_for_row(row, source: str, n_dim: int) -> str:
+        if source in {"delta", "delta_from_raw", "head", "head_delta", "head_delta_from_raw"}:
+            return _delta_marker_symbol(row, n_dim)
+        return _orig_marker_symbol(row, n_dim)
 
     # Override pair_label in the plotting DF so hover shows tokenization via hyphens.
     plot_df["pair_label"] = plot_df.apply(_pair_label_tokenized, axis=1)
-    plot_df["pair_marker_role"] = plot_df.apply(
-        lambda row: _pair_marker_role(row, embedding_source),
-        axis=1,
-    )
     deltas = np.stack(vectors)
     n_samples = int(deltas.shape[0])
 
@@ -1099,41 +1193,39 @@ def write_visualizations(
         color_column = "lexeme"
 
     def _legend_label_for_row(row) -> Optional[str]:
-        role = row.get("pair_marker_role")
-        if not isinstance(role, str):
-            return None
-
         meaning_id = row.get("meaning_index_label")
         show_meaning_id = color_column == "meaning_index_label" and isinstance(meaning_id, str) and meaning_id
         prefix = f"({meaning_id}) " if show_meaning_id else ""
+        mps = row.get("mps")
+        mps_suffix = f" ({mps})" if isinstance(mps, str) and mps else ""
 
         if embedding_source == "orig":
             form = row.get("original_form")
             lemma = row.get("lexeme")
             if not isinstance(form, str) or not form or not isinstance(lemma, str) or not lemma:
                 return None
-            return f"{prefix}{form} ({lemma})"
+            return f"{prefix}{form} ({lemma}){mps_suffix}"
 
         if embedding_source in {"delta", "delta_from_raw", "head", "head_delta", "head_delta_from_raw"}:
             orig = row.get("original_form")
             art = row.get("partner_form")
             if not isinstance(orig, str) or not orig or not isinstance(art, str) or not art:
                 return None
-            return f"{prefix}{orig} -> {art}"
+            return f"{prefix}{orig} -> {art}{mps_suffix}"
 
         return None
 
-    def _rename_legend_traces(fig) -> None:
+    def _rename_legend_traces(fig, symbol_column: str) -> None:
         trace_label_map: Dict[tuple[str, str], str] = {}
         for _, row in plot_df.iterrows():
             color_value = row.get(color_column)
-            role = row.get("pair_marker_role")
-            if color_value is None or not isinstance(role, str):
+            marker_symbol = row.get(symbol_column)
+            if color_value is None or not isinstance(marker_symbol, str):
                 continue
             label = _legend_label_for_row(row)
             if label is None:
                 continue
-            trace_label_map.setdefault((str(color_value), role), label)
+            trace_label_map.setdefault((str(color_value), marker_symbol), label)
 
         if not trace_label_map:
             return
@@ -1183,7 +1275,14 @@ def write_visualizations(
             for i in range(n_dim):
                 plot_df[f"{name.lower()}{i+1}_{n_dim}d"] = reduced[:, i]
 
-            symbol_map = {"circle": "circle", "triangle": "triangle-up" if n_dim == 2 else "diamond"}
+            symbol_column = f"marker_symbol_{n_dim}d"
+            plot_df[symbol_column] = plot_df.apply(
+                lambda row: _marker_symbol_for_row(row, embedding_source, n_dim),
+                axis=1,
+            )
+
+            unique_symbols = [str(v) for v in plot_df[symbol_column].dropna().astype(str).unique().tolist()]
+            symbol_map = {symbol: symbol for symbol in unique_symbols}
 
             if n_dim == 2:
                 fig = px.scatter(
@@ -1191,7 +1290,7 @@ def write_visualizations(
                     x=f"{name.lower()}1_{n_dim}d",
                     y=f"{name.lower()}2_{n_dim}d",
                     color=color_column,
-                    symbol="pair_marker_role",
+                    symbol=symbol_column,
                     custom_data=custom_data_fields,
                     symbol_map=symbol_map,
                 )
@@ -1202,12 +1301,12 @@ def write_visualizations(
                     y=f"{name.lower()}2_{n_dim}d",
                     z=f"{name.lower()}3_{n_dim}d",
                     color=color_column,
-                    symbol="pair_marker_role",
+                    symbol=symbol_column,
                     custom_data=custom_data_fields,
                     symbol_map=symbol_map,
                 )
 
-            _rename_legend_traces(fig)
+            _rename_legend_traces(fig, symbol_column)
 
             is_head_source = embedding_source in {"head", "head_delta", "head_delta_from_raw", "orig_head", "art_head"}
             title_suffix = embedding_source
