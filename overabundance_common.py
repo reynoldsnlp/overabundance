@@ -1373,6 +1373,7 @@ def write_lexeme_visualizations(
         generate_index_html(lex_dir)
 
     generate_index_html(out_root)
+    refresh_docs_indexes_for_path(out_root, docs_dir=docs_dir)
     return out_root
 
 
@@ -1438,11 +1439,39 @@ def generate_index_html(folder: str) -> None:
         f.write("\n".join(html_lines))
 
 
+def _find_docs_root(path: str) -> Optional[str]:
+    cur = os.path.abspath(path)
+    if not os.path.isdir(cur):
+        cur = os.path.dirname(cur)
+    while True:
+        if os.path.basename(cur) == "docs":
+            return cur
+        parent = os.path.dirname(cur)
+        if parent == cur:
+            return None
+        cur = parent
+
+
 def update_docs_indexes(docs_dir: str = "docs") -> None:
     if not os.path.isdir(docs_dir):
         return
     for root, dirs, files in os.walk(docs_dir):
         generate_index_html(root)
+
+
+def refresh_docs_indexes_for_path(path: str, *, docs_dir: Optional[str] = None) -> Optional[str]:
+    if os.path.isdir(path):
+        generate_index_html(path)
+
+    docs_root = _find_docs_root(path)
+    if docs_root is None and docs_dir:
+        candidate = os.path.abspath(docs_dir)
+        if os.path.isdir(candidate):
+            docs_root = candidate
+
+    if docs_root is not None:
+        update_docs_indexes(docs_root)
+    return docs_root
 
 
 def remove_legacy_modernbert_docs(docs_dir: str = "docs") -> None:

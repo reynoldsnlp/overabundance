@@ -85,6 +85,10 @@ def _clean_model_name(model: str) -> str:
     return model.replace("/", "_")
 
 
+def _is_supported_source(s: str) -> bool:
+    return s in {"delta", "delta_from_raw", "orig", "art", "head", "head_delta", "head_delta_from_raw", "orig_head", "art_head"}
+
+
 def _is_head_source(s: str) -> bool:
     return s in {"head", "head_delta", "head_delta_from_raw", "orig_head", "art_head"}
 
@@ -139,6 +143,28 @@ def _load_tsv_glob(pattern: str) -> pd.DataFrame:
     return out
 
 
+def _filter_subset(
+    df: pd.DataFrame,
+    *,
+    distance: str,
+    label_scheme: str,
+    aggregation: Optional[str] = None,
+) -> pd.DataFrame:
+    if df.empty:
+        return pd.DataFrame()
+    out = df.copy()
+    if "distance" not in out.columns or "embedding_source" not in out.columns or "label_scheme" not in out.columns:
+        return pd.DataFrame(columns=out.columns)
+    out = out[out["distance"] == distance].copy()
+    if aggregation is not None:
+        if "aggregation" not in out.columns:
+            return pd.DataFrame(columns=out.columns)
+        out = out[out["aggregation"] == aggregation].copy()
+    out = out[out["embedding_source"].apply(_is_supported_source)].copy()
+    out = out[out["label_scheme"] == label_scheme].copy()
+    return out
+
+
 def _is_single_head(s: str) -> bool:
     return s.isdigit()
 
@@ -169,6 +195,35 @@ def _combo_size(s: str) -> Optional[int]:
     return None
 
 
+def _config_label(head_indices: str, embedding_source: str) -> str:
+    head_indices = str(head_indices).strip()
+    embedding_source = str(embedding_source).strip()
+    if head_indices:
+        return head_indices
+    return embedding_source or "default"
+
+
+def _has_head_sweep_configs(df: pd.DataFrame) -> bool:
+    if df.empty:
+        return False
+    return bool(df["embedding_source"].apply(_is_head_source).any())
+
+
+def _select_reference_subset(sub: pd.DataFrame) -> Tuple[pd.DataFrame, str]:
+    all_rows = sub[sub["head_indices"] == "all"].copy()
+    if not all_rows.empty:
+        return all_rows, "all"
+    if sub.empty:
+        return sub.copy(), ""
+    unique_config_labels = {
+        _config_label(row.head_indices, row.embedding_source)
+        for row in sub[["head_indices", "embedding_source"]].itertuples(index=False)
+    }
+    if len(unique_config_labels) == 1:
+        return sub.copy(), next(iter(unique_config_labels))
+    return pd.DataFrame(columns=sub.columns), ""
+
+
 def plot_best_vs_all(df: pd.DataFrame, out_dir: str, filename: str, title: str) -> Optional[str]:
     rows = []
     for model, sub in df.groupby("model"):
@@ -176,16 +231,17 @@ def plot_best_vs_all(df: pd.DataFrame, out_dir: str, filename: str, title: str) 
         if sub.empty:
             continue
 
-        all_row = sub[sub["head_indices"] == "all"]
+        all_row, baseline_label = _select_reference_subset(sub)
         best_row = sub.loc[sub["silhouette"].idxmax()]
         all_val = float(all_row.iloc[0]["silhouette"]) if not all_row.empty else np.nan
 
         rows.append(
             {
                 "model": model,
-                "all_silhouette": all_val,
+                "baseline_silhouette": all_val,
+                "baseline_label": baseline_label or "baseline",
                 "best_silhouette": float(best_row["silhouette"]),
-                "best_head_indices": str(best_row["head_indices"]),
+                "best_config_label": _config_label(best_row["head_indices"], best_row.get("embedding_source", "")),
             }
         )
 
@@ -197,16 +253,17 @@ def plot_best_vs_all(df: pd.DataFrame, out_dir: str, filename: str, title: str) 
     width = 0.36
 
     fig, ax = plt.subplots(figsize=(11, 5))
-    all_vals = plot_df["all_silhouette"].to_numpy(dtype=float)
+    all_vals = plot_df["baseline_silhouette"].to_numpy(dtype=float)
     best_vals = plot_df["best_silhouette"].to_numpy(dtype=float)
     finite_all = np.isfinite(all_vals)
+    baseline_legend = "all heads" if plot_df["baseline_label"].eq("all").all() else "reference config"
 
     if np.any(finite_all):
         ax.bar(
             x[finite_all] - width / 2,
             all_vals[finite_all],
             width,
-            label="all heads",
+            label=baseline_legend,
             color="#4c78a8",
         )
 
@@ -216,7 +273,7 @@ def plot_best_vs_all(df: pd.DataFrame, out_dir: str, filename: str, title: str) 
             x[~finite_all] - width / 2,
             np.zeros(np.sum(~finite_all), dtype=float),
             width,
-            label="all heads (missing)",
+            label=f"{baseline_legend} (missing)",
             facecolor="none",
             edgecolor="#999999",
             linewidth=1.0,
@@ -226,8 +283,8 @@ def plot_best_vs_all(df: pd.DataFrame, out_dir: str, filename: str, title: str) 
 
     for i, (_, row) in enumerate(plot_df.iterrows()):
         y_best = float(row["best_silhouette"])
-        y_all = row["all_silhouette"]
-        ax.text(i + width / 2, y_best, f"{y_best:.3f}\n{row['best_head_indices']}", ha="center", va="bottom", fontsize=8)
+        y_all = row["baseline_silhouette"]
+        ax.text(i + width / 2, y_best, f"{y_best:.3f}\n{row['best_config_label']}", ha="center", va="bottom", fontsize=8)
         if np.isfinite(y_all):
             ax.text(i - width / 2, float(y_all), f"{float(y_all):.3f}", ha="center", va="bottom", fontsize=8)
         else:
@@ -262,16 +319,21 @@ def plot_top_configs_per_model(
             continue
 
         top = sub.sort_values("silhouette", ascending=False).head(top_n)
+        y_labels = [
+            _config_label(head_indices, embedding_source)
+            for head_indices, embedding_source in top[["head_indices", "embedding_source"]].itertuples(index=False)
+        ]
         fig_h = max(4.5, 0.35 * len(top) + 1.5)
         fig, ax = plt.subplots(figsize=(9.5, fig_h))
 
         y = np.arange(len(top))
         ax.barh(y, top["silhouette"], color="#1f77b4")
         ax.set_yticks(y)
-        ax.set_yticklabels(top["head_indices"].tolist())
+        ax.set_yticklabels(y_labels)
         ax.invert_yaxis()
         ax.set_xlabel("Silhouette")
-        ax.set_title(_title_with_scheme(f"Top {len(top)} Head Configs: {_clean_model_name(model)}", label_scheme))
+        title_prefix = "Top Configs" if len(set(y_labels)) != 1 or y_labels[0] != top.iloc[0]["embedding_source"] else "Config"
+        ax.set_title(_title_with_scheme(f"{title_prefix}: {_clean_model_name(model)}", label_scheme))
         ax.grid(axis="x", alpha=0.25)
 
         for yi, val in enumerate(top["silhouette"].to_numpy(dtype=float)):
@@ -381,18 +443,21 @@ def plot_pair_heatmap(
 def plot_per_lexeme_violin_all_heads(df: pd.DataFrame, out_dir: str, *, label_scheme: str) -> Optional[str]:
     rows = []
     for model, sub in df.groupby("model"):
-        s = sub[sub["head_indices"] == "all"]
+        s, config_label = _select_reference_subset(sub)
         vals = s["silhouette"].to_numpy(dtype=float)
         vals = vals[np.isfinite(vals)]
         if vals.size == 0:
             continue
-        rows.append((model, vals))
+        rows.append((model, config_label or "reference", vals))
 
     if not rows:
         return None
 
-    labels = [_clean_model_name(m) for m, _ in rows]
-    values = [v for _, v in rows]
+    labels = [
+        _clean_model_name(m) if config_label == "all" else f"{_clean_model_name(m)}\n{config_label}"
+        for m, config_label, _ in rows
+    ]
+    values = [v for _, _, v in rows]
 
     fig, ax = plt.subplots(figsize=(11, 5.2))
     parts = ax.violinplot(values, showmeans=True, showmedians=True)
@@ -401,7 +466,10 @@ def plot_per_lexeme_violin_all_heads(df: pd.DataFrame, out_dir: str, *, label_sc
     ax.set_xticks(np.arange(1, len(labels) + 1))
     ax.set_xticklabels(labels, rotation=20, ha="right")
     ax.set_ylabel("Silhouette")
-    ax.set_title(_title_with_scheme("Per-Lexeme Silhouette Distribution (All-Heads)", label_scheme))
+    title = "Per-Lexeme Silhouette Distribution (Reference Config)"
+    if all(config_label == "all" for _, config_label, _ in rows):
+        title = "Per-Lexeme Silhouette Distribution (All-Heads)"
+    ax.set_title(_title_with_scheme(title, label_scheme))
     ax.grid(axis="y", alpha=0.25)
 
     for i, vals in enumerate(values, start=1):
@@ -429,23 +497,24 @@ def plot_per_lexeme_box_best_head(
             continue
         best = gsub.loc[gsub["silhouette"].idxmax()]
         head_label = str(best["head_indices"])
+        config_label = _config_label(best["head_indices"], best.get("embedding_source", ""))
         psub = per_df[(per_df["model"] == model) & (per_df["head_indices"] == head_label)]
         vals = psub["silhouette"].to_numpy(dtype=float)
         vals = vals[np.isfinite(vals)]
         if vals.size == 0:
             continue
-        rows.append((model, head_label, vals))
+        rows.append((model, config_label, vals))
 
     if not rows:
         return None
 
-    labels = [f"{_clean_model_name(m)}\nhead={h}" for m, h, _ in rows]
+    labels = [f"{_clean_model_name(m)}\nconfig={h}" for m, h, _ in rows]
     values = [v for _, _, v in rows]
 
     fig, ax = plt.subplots(figsize=(12, 5.5))
     ax.boxplot(values, tick_labels=labels, showmeans=True)
     ax.set_ylabel("Silhouette")
-    ax.set_title(_title_with_scheme("Per-Lexeme Silhouette Distribution (Best Global Head Config)", label_scheme))
+    ax.set_title(_title_with_scheme("Per-Lexeme Silhouette Distribution (Best Global Config)", label_scheme))
     ax.grid(axis="y", alpha=0.25)
 
     for i, vals in enumerate(values, start=1):
@@ -509,17 +578,9 @@ def main() -> None:
     per_df = _load_tsv_glob(args.per_lexeme_pattern)
     global_df = _load_tsv_glob(args.global_pattern)
 
-    agg_subset = agg_df[(agg_df["distance"] == args.distance) & (agg_df["aggregation"] == args.aggregation)].copy()
-    agg_subset = agg_subset[agg_subset["embedding_source"].apply(_is_head_source)].copy()
-    agg_subset = agg_subset[agg_subset["label_scheme"] == args.label_scheme].copy()
-
-    per_subset = per_df[per_df["distance"] == args.distance].copy()
-    per_subset = per_subset[per_subset["embedding_source"].apply(_is_head_source)].copy()
-    per_subset = per_subset[per_subset["label_scheme"] == args.label_scheme].copy()
-
-    global_subset = global_df[global_df["distance"] == args.distance].copy()
-    global_subset = global_subset[global_subset["embedding_source"].apply(_is_head_source)].copy()
-    global_subset = global_subset[global_subset["label_scheme"] == args.label_scheme].copy()
+    agg_subset = _filter_subset(agg_df, distance=args.distance, aggregation=args.aggregation, label_scheme=args.label_scheme)
+    per_subset = _filter_subset(per_df, distance=args.distance, label_scheme=args.label_scheme)
+    global_subset = _filter_subset(global_df, distance=args.distance, label_scheme=args.label_scheme)
 
     if agg_subset.empty and per_subset.empty and global_subset.empty:
         print(f"No rows matched the selected filters for label_scheme={args.label_scheme}.")
@@ -527,17 +588,20 @@ def main() -> None:
 
     saved: List[str] = []
     scheme_slug = _label_scheme_slug(args.label_scheme)
+    global_has_head_sweep = _has_head_sweep_configs(global_subset)
+    agg_has_head_sweep = _has_head_sweep_configs(agg_subset)
 
     # Global pooled condition under the selected label scheme.
     if not global_subset.empty:
-        first = plot_best_vs_all(
-            global_subset,
-            args.output_dir,
-            filename=f"global_best_vs_all_silhouette_{scheme_slug}.png",
-            title=_title_with_scheme("Global Pooled: Best Head Config vs All-Heads Baseline", args.label_scheme),
-        )
-        if first is not None:
-            saved.append(first)
+        if global_has_head_sweep:
+            first = plot_best_vs_all(
+                global_subset,
+                args.output_dir,
+                filename=f"global_best_vs_all_silhouette_{scheme_slug}.png",
+                title=_title_with_scheme("Global Pooled: Best Head Config vs All-Heads Baseline", args.label_scheme),
+            )
+            if first is not None:
+                saved.append(first)
         saved.extend(
             plot_top_configs_per_model(
                 global_subset,
@@ -547,27 +611,28 @@ def main() -> None:
                 label_scheme=args.label_scheme,
             )
         )
-        saved.extend(
-            plot_single_head_heatmap(
-                global_subset,
-                args.output_dir,
-                prefix=f"global_{scheme_slug}",
-                title_prefix="Global",
-                label_scheme=args.label_scheme,
+        if global_has_head_sweep:
+            saved.extend(
+                plot_single_head_heatmap(
+                    global_subset,
+                    args.output_dir,
+                    prefix=f"global_{scheme_slug}",
+                    title_prefix="Global",
+                    label_scheme=args.label_scheme,
+                )
             )
-        )
-        saved.extend(
-            plot_pair_heatmap(
-                global_subset,
-                args.output_dir,
-                prefix=f"global_{scheme_slug}",
-                title_prefix="Global",
-                label_scheme=args.label_scheme,
+            saved.extend(
+                plot_pair_heatmap(
+                    global_subset,
+                    args.output_dir,
+                    prefix=f"global_{scheme_slug}",
+                    title_prefix="Global",
+                    label_scheme=args.label_scheme,
+                )
             )
-        )
-        cpath = plot_combo_size_summary(global_subset, args.output_dir, label_scheme=args.label_scheme)
-        if cpath is not None:
-            saved.append(cpath)
+            cpath = plot_combo_size_summary(global_subset, args.output_dir, label_scheme=args.label_scheme)
+            if cpath is not None:
+                saved.append(cpath)
 
     # Per-lexeme condition (one lexeme at a time).
     if not per_subset.empty:
@@ -586,14 +651,15 @@ def main() -> None:
 
     # Retain the legacy summary plots from per-lexeme aggregate output.
     if not agg_subset.empty:
-        first = plot_best_vs_all(
-            agg_subset,
-            args.output_dir,
-            filename=f"per_lexeme_aggregate_best_vs_all_silhouette_{scheme_slug}.png",
-            title=_title_with_scheme("Per-Lexeme Aggregate: Best Head Config vs All-Heads Baseline", args.label_scheme),
-        )
-        if first is not None:
-            saved.append(first)
+        if agg_has_head_sweep:
+            first = plot_best_vs_all(
+                agg_subset,
+                args.output_dir,
+                filename=f"per_lexeme_aggregate_best_vs_all_silhouette_{scheme_slug}.png",
+                title=_title_with_scheme("Per-Lexeme Aggregate: Best Head Config vs All-Heads Baseline", args.label_scheme),
+            )
+            if first is not None:
+                saved.append(first)
         saved.extend(
             plot_top_configs_per_model(
                 agg_subset,
@@ -613,10 +679,11 @@ def main() -> None:
         print(f"- {p}")
 
     if not args.skip_index_update:
-        common.generate_index_html(args.output_dir)
-        # Keep the docs tree index pages in sync with newly written charts.
-        common.update_docs_indexes("docs")
-        print(f"Updated index files under docs/ (including {args.output_dir}/index.html)")
+        docs_root = common.refresh_docs_indexes_for_path(args.output_dir)
+        if docs_root is not None:
+            print(f"Updated index files under {docs_root} (including {args.output_dir}/index.html)")
+        else:
+            print(f"Updated {args.output_dir}/index.html")
 
 
 if __name__ == "__main__":
