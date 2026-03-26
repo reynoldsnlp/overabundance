@@ -68,6 +68,12 @@ def parse_args() -> argparse.Namespace:
         help="Number of top head configs to include in top-config bar charts.",
     )
     parser.add_argument(
+        "--label-scheme",
+        choices=["raw_meaning", "human_expected"],
+        default="raw_meaning",
+        help="Filter clustering TSVs to one label scheme. TSVs without this column are treated as raw_meaning.",
+    )
+    parser.add_argument(
         "--skip-index-update",
         action="store_true",
         help="Do not regenerate docs index files after writing charts.",
@@ -81,6 +87,20 @@ def _clean_model_name(model: str) -> str:
 
 def _is_head_source(s: str) -> bool:
     return s in {"head", "head_delta", "head_delta_from_raw", "orig_head", "art_head"}
+
+
+def _label_scheme_slug(label_scheme: str) -> str:
+    return str(label_scheme).strip() or "raw_meaning"
+
+
+def _label_scheme_title(label_scheme: str) -> str:
+    if label_scheme == "human_expected":
+        return "Significance-Collapsed Labels"
+    return "Raw Meaning Labels"
+
+
+def _title_with_scheme(title: str, label_scheme: str) -> str:
+    return f"{title} ({_label_scheme_title(label_scheme)})"
 
 
 def _load_tsv_glob(pattern: str) -> pd.DataFrame:
@@ -112,6 +132,10 @@ def _load_tsv_glob(pattern: str) -> pd.DataFrame:
         out["embedding_source"] = out["embedding_source"].astype(str)
     else:
         out["embedding_source"] = ""
+    if "label_scheme" in out.columns:
+        out["label_scheme"] = out["label_scheme"].fillna("").replace("", "raw_meaning").astype(str)
+    else:
+        out["label_scheme"] = "raw_meaning"
     return out
 
 
@@ -223,7 +247,14 @@ def plot_best_vs_all(df: pd.DataFrame, out_dir: str, filename: str, title: str) 
     return out_path
 
 
-def plot_top_configs_per_model(df: pd.DataFrame, out_dir: str, top_n: int, prefix: str) -> List[str]:
+def plot_top_configs_per_model(
+    df: pd.DataFrame,
+    out_dir: str,
+    top_n: int,
+    prefix: str,
+    *,
+    label_scheme: str,
+) -> List[str]:
     paths: List[str] = []
     for model, sub in df.groupby("model"):
         sub = sub[np.isfinite(sub["silhouette"])].copy()
@@ -240,7 +271,7 @@ def plot_top_configs_per_model(df: pd.DataFrame, out_dir: str, top_n: int, prefi
         ax.set_yticklabels(top["head_indices"].tolist())
         ax.invert_yaxis()
         ax.set_xlabel("Silhouette")
-        ax.set_title(f"Top {len(top)} Head Configs: {_clean_model_name(model)}")
+        ax.set_title(_title_with_scheme(f"Top {len(top)} Head Configs: {_clean_model_name(model)}", label_scheme))
         ax.grid(axis="x", alpha=0.25)
 
         for yi, val in enumerate(top["silhouette"].to_numpy(dtype=float)):
@@ -254,7 +285,14 @@ def plot_top_configs_per_model(df: pd.DataFrame, out_dir: str, top_n: int, prefi
     return paths
 
 
-def plot_single_head_heatmap(df: pd.DataFrame, out_dir: str, prefix: str, title_prefix: str) -> List[str]:
+def plot_single_head_heatmap(
+    df: pd.DataFrame,
+    out_dir: str,
+    prefix: str,
+    title_prefix: str,
+    *,
+    label_scheme: str,
+) -> List[str]:
     paths: List[str] = []
     for model, sub in df.groupby("model"):
         singles = sub[sub["head_indices"].apply(_is_single_head)].copy()
@@ -274,7 +312,7 @@ def plot_single_head_heatmap(df: pd.DataFrame, out_dir: str, prefix: str, title_
         ax.set_xticks(np.arange(len(labels)))
         ax.set_xticklabels(labels)
         ax.set_xlabel("Head Index")
-        ax.set_title(f"{title_prefix} Single-Head Silhouette: {_clean_model_name(model)}")
+        ax.set_title(_title_with_scheme(f"{title_prefix} Single-Head Silhouette: {_clean_model_name(model)}", label_scheme))
 
         for j, v in enumerate(values[0]):
             if np.isfinite(v):
@@ -289,7 +327,14 @@ def plot_single_head_heatmap(df: pd.DataFrame, out_dir: str, prefix: str, title_
     return paths
 
 
-def plot_pair_heatmap(df: pd.DataFrame, out_dir: str, prefix: str, title_prefix: str) -> List[str]:
+def plot_pair_heatmap(
+    df: pd.DataFrame,
+    out_dir: str,
+    prefix: str,
+    title_prefix: str,
+    *,
+    label_scheme: str,
+) -> List[str]:
     paths: List[str] = []
     for model, sub in df.groupby("model"):
         pairs = sub[sub["head_indices"].apply(_is_pair_head)].copy()
@@ -314,7 +359,7 @@ def plot_pair_heatmap(df: pd.DataFrame, out_dir: str, prefix: str, title_prefix:
         im = ax.imshow(mat, cmap="viridis", aspect="equal")
         ax.set_xlabel("Head Index")
         ax.set_ylabel("Head Index")
-        ax.set_title(f"{title_prefix} Head-Pair Silhouette Matrix: {_clean_model_name(model)}")
+        ax.set_title(_title_with_scheme(f"{title_prefix} Head-Pair Silhouette Matrix: {_clean_model_name(model)}", label_scheme))
         ax.set_xticks(np.arange(max_head + 1))
         ax.set_yticks(np.arange(max_head + 1))
 
@@ -333,7 +378,7 @@ def plot_pair_heatmap(df: pd.DataFrame, out_dir: str, prefix: str, title_prefix:
     return paths
 
 
-def plot_per_lexeme_violin_all_heads(df: pd.DataFrame, out_dir: str) -> Optional[str]:
+def plot_per_lexeme_violin_all_heads(df: pd.DataFrame, out_dir: str, *, label_scheme: str) -> Optional[str]:
     rows = []
     for model, sub in df.groupby("model"):
         s = sub[sub["head_indices"] == "all"]
@@ -356,21 +401,27 @@ def plot_per_lexeme_violin_all_heads(df: pd.DataFrame, out_dir: str) -> Optional
     ax.set_xticks(np.arange(1, len(labels) + 1))
     ax.set_xticklabels(labels, rotation=20, ha="right")
     ax.set_ylabel("Silhouette")
-    ax.set_title("Per-Lexeme Silhouette Distribution (All-Heads)")
+    ax.set_title(_title_with_scheme("Per-Lexeme Silhouette Distribution (All-Heads)", label_scheme))
     ax.grid(axis="y", alpha=0.25)
 
     for i, vals in enumerate(values, start=1):
         mean_v = float(np.mean(vals))
         ax.text(i, mean_v, f"{mean_v:.3f}", ha="center", va="bottom", fontsize=8)
 
-    out_path = os.path.join(out_dir, "per_lexeme_violin_all_heads.png")
+    out_path = os.path.join(out_dir, f"per_lexeme_violin_all_heads_{_label_scheme_slug(label_scheme)}.png")
     fig.tight_layout()
     fig.savefig(out_path, dpi=180)
     plt.close(fig)
     return out_path
 
 
-def plot_per_lexeme_box_best_head(per_df: pd.DataFrame, global_df: pd.DataFrame, out_dir: str) -> Optional[str]:
+def plot_per_lexeme_box_best_head(
+    per_df: pd.DataFrame,
+    global_df: pd.DataFrame,
+    out_dir: str,
+    *,
+    label_scheme: str,
+) -> Optional[str]:
     rows = []
     for model, gsub in global_df.groupby("model"):
         gsub = gsub[np.isfinite(gsub["silhouette"])].copy()
@@ -394,21 +445,21 @@ def plot_per_lexeme_box_best_head(per_df: pd.DataFrame, global_df: pd.DataFrame,
     fig, ax = plt.subplots(figsize=(12, 5.5))
     ax.boxplot(values, tick_labels=labels, showmeans=True)
     ax.set_ylabel("Silhouette")
-    ax.set_title("Per-Lexeme Silhouette Distribution (Best Global Head Config)")
+    ax.set_title(_title_with_scheme("Per-Lexeme Silhouette Distribution (Best Global Head Config)", label_scheme))
     ax.grid(axis="y", alpha=0.25)
 
     for i, vals in enumerate(values, start=1):
         med_v = float(np.median(vals))
         ax.text(i, med_v, f"{med_v:.3f}", ha="center", va="bottom", fontsize=8)
 
-    out_path = os.path.join(out_dir, "per_lexeme_box_best_global_head.png")
+    out_path = os.path.join(out_dir, f"per_lexeme_box_best_global_head_{_label_scheme_slug(label_scheme)}.png")
     fig.tight_layout()
     fig.savefig(out_path, dpi=180)
     plt.close(fig)
     return out_path
 
 
-def plot_combo_size_summary(global_df: pd.DataFrame, out_dir: str) -> Optional[str]:
+def plot_combo_size_summary(global_df: pd.DataFrame, out_dir: str, *, label_scheme: str) -> Optional[str]:
     work = global_df.copy()
     work["combo_size"] = work["head_indices"].apply(_combo_size)
     work = work[np.isfinite(work["silhouette"]) & work["combo_size"].notna()].copy()
@@ -435,7 +486,7 @@ def plot_combo_size_summary(global_df: pd.DataFrame, out_dir: str) -> Optional[s
     fig, ax = plt.subplots(figsize=(max(10.0, 0.45 * len(labels)), 5.6))
     ax.boxplot(values, tick_labels=labels, showmeans=True)
     ax.set_ylabel("Silhouette")
-    ax.set_title("Global Silhouette by Head-Combination Size")
+    ax.set_title(_title_with_scheme("Global Silhouette by Head-Combination Size", label_scheme))
     ax.grid(axis="y", alpha=0.25)
     ax.tick_params(axis="x", rotation=20)
 
@@ -443,7 +494,7 @@ def plot_combo_size_summary(global_df: pd.DataFrame, out_dir: str) -> Optional[s
         med_v = float(np.median(vals))
         ax.text(i, med_v, f"{med_v:.3f}", ha="center", va="bottom", fontsize=8)
 
-    out_path = os.path.join(out_dir, "global_combo_size_boxplot.png")
+    out_path = os.path.join(out_dir, f"global_combo_size_boxplot_{_label_scheme_slug(label_scheme)}.png")
     fig.tight_layout()
     fig.savefig(out_path, dpi=180)
     plt.close(fig)
@@ -460,43 +511,76 @@ def main() -> None:
 
     agg_subset = agg_df[(agg_df["distance"] == args.distance) & (agg_df["aggregation"] == args.aggregation)].copy()
     agg_subset = agg_subset[agg_subset["embedding_source"].apply(_is_head_source)].copy()
+    agg_subset = agg_subset[agg_subset["label_scheme"] == args.label_scheme].copy()
 
     per_subset = per_df[per_df["distance"] == args.distance].copy()
     per_subset = per_subset[per_subset["embedding_source"].apply(_is_head_source)].copy()
+    per_subset = per_subset[per_subset["label_scheme"] == args.label_scheme].copy()
 
     global_subset = global_df[global_df["distance"] == args.distance].copy()
     global_subset = global_subset[global_subset["embedding_source"].apply(_is_head_source)].copy()
+    global_subset = global_subset[global_subset["label_scheme"] == args.label_scheme].copy()
 
     if agg_subset.empty and per_subset.empty and global_subset.empty:
-        print("No rows matched the selected filters.")
+        print(f"No rows matched the selected filters for label_scheme={args.label_scheme}.")
         return
 
     saved: List[str] = []
+    scheme_slug = _label_scheme_slug(args.label_scheme)
 
-    # Global pooled condition (labels isolated by lexeme::meaning_index).
+    # Global pooled condition under the selected label scheme.
     if not global_subset.empty:
         first = plot_best_vs_all(
             global_subset,
             args.output_dir,
-            filename="global_best_vs_all_silhouette.png",
-            title="Global Pooled: Best Head Config vs All-Heads Baseline",
+            filename=f"global_best_vs_all_silhouette_{scheme_slug}.png",
+            title=_title_with_scheme("Global Pooled: Best Head Config vs All-Heads Baseline", args.label_scheme),
         )
         if first is not None:
             saved.append(first)
-        saved.extend(plot_top_configs_per_model(global_subset, args.output_dir, top_n=args.top_n, prefix="global"))
-        saved.extend(plot_single_head_heatmap(global_subset, args.output_dir, prefix="global", title_prefix="Global"))
-        saved.extend(plot_pair_heatmap(global_subset, args.output_dir, prefix="global", title_prefix="Global"))
-        cpath = plot_combo_size_summary(global_subset, args.output_dir)
+        saved.extend(
+            plot_top_configs_per_model(
+                global_subset,
+                args.output_dir,
+                top_n=args.top_n,
+                prefix=f"global_{scheme_slug}",
+                label_scheme=args.label_scheme,
+            )
+        )
+        saved.extend(
+            plot_single_head_heatmap(
+                global_subset,
+                args.output_dir,
+                prefix=f"global_{scheme_slug}",
+                title_prefix="Global",
+                label_scheme=args.label_scheme,
+            )
+        )
+        saved.extend(
+            plot_pair_heatmap(
+                global_subset,
+                args.output_dir,
+                prefix=f"global_{scheme_slug}",
+                title_prefix="Global",
+                label_scheme=args.label_scheme,
+            )
+        )
+        cpath = plot_combo_size_summary(global_subset, args.output_dir, label_scheme=args.label_scheme)
         if cpath is not None:
             saved.append(cpath)
 
     # Per-lexeme condition (one lexeme at a time).
     if not per_subset.empty:
-        vpath = plot_per_lexeme_violin_all_heads(per_subset, args.output_dir)
+        vpath = plot_per_lexeme_violin_all_heads(per_subset, args.output_dir, label_scheme=args.label_scheme)
         if vpath is not None:
             saved.append(vpath)
         if not global_subset.empty:
-            bpath = plot_per_lexeme_box_best_head(per_subset, global_subset, args.output_dir)
+            bpath = plot_per_lexeme_box_best_head(
+                per_subset,
+                global_subset,
+                args.output_dir,
+                label_scheme=args.label_scheme,
+            )
             if bpath is not None:
                 saved.append(bpath)
 
@@ -505,12 +589,20 @@ def main() -> None:
         first = plot_best_vs_all(
             agg_subset,
             args.output_dir,
-            filename="per_lexeme_aggregate_best_vs_all_silhouette.png",
-            title="Per-Lexeme Aggregate: Best Head Config vs All-Heads Baseline",
+            filename=f"per_lexeme_aggregate_best_vs_all_silhouette_{scheme_slug}.png",
+            title=_title_with_scheme("Per-Lexeme Aggregate: Best Head Config vs All-Heads Baseline", args.label_scheme),
         )
         if first is not None:
             saved.append(first)
-        saved.extend(plot_top_configs_per_model(agg_subset, args.output_dir, top_n=args.top_n, prefix="per_lexeme_aggregate"))
+        saved.extend(
+            plot_top_configs_per_model(
+                agg_subset,
+                args.output_dir,
+                top_n=args.top_n,
+                prefix=f"per_lexeme_aggregate_{scheme_slug}",
+                label_scheme=args.label_scheme,
+            )
+        )
 
     if not saved:
         print("No charts were generated.")
