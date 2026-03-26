@@ -1,0 +1,157 @@
+<html>
+<head>
+<title>t-SNE grid search: bert-base-uncased</title>
+
+    <style>
+      body { font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif; margin: 24px; }
+      .note { color: #444; margin: 8px 0 18px 0; }
+      .wrap { overflow: auto; border: 1px solid #eee; padding: 8px; }
+      table { border-collapse: collapse; }
+      th, td { border: 1px solid #ddd; padding: 6px; vertical-align: top; }
+      th { position: sticky; top: 0; background: #fafafa; z-index: 2; }
+      .rowhdr { position: sticky; left: 0; background: #fafafa; z-index: 1; }
+      .param { font-size: 12px; color: #333; margin-bottom: 4px; white-space: nowrap; }
+      img { display: block; width: 220px; height: 220px; }
+      code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    </style>
+    
+</head>
+<body>
+<h1>t-SNE grid search: bert-base-uncased</h1>
+<div class='note'>points: 50 (missing cached deltas: 0)<br>PCA pre-reduction: 50 dims</div>
+<div class='wrap'>
+<table>
+<tr>
+<th></th>
+<th>learning_rate=10</th>
+<th>learning_rate=110</th>
+<th>learning_rate=210</th>
+<th>learning_rate=310</th>
+<th>learning_rate=410</th>
+<th>learning_rate=510</th>
+<th>learning_rate=610</th>
+<th>learning_rate=710</th>
+<th>learning_rate=810</th>
+<th>learning_rate=910</th>
+</tr>
+<tr>
+<th class='rowhdr'>perplexity=5</th>
+<td><div class='param'><code>perplexity=5, learning_rate=10</code></div><img src='img/tsne_p5_lr10.png' loading='lazy' /></td>
+<td><div class='param'><code>perplexity=5, learning_rate=110</code></div><img src='img/tsne_p5_lr110.png' loading='lazy' /></td>
+<td><div class='param'><code>perplexity=5, learning_rate=210</code></div><img src='img/tsne_p5_lr210.png' loading='lazy' /></td>
+<td><div class='param'><code>perplexity=5, learning_rate=310</code></div><img src='img/tsne_p5_lr310.png' loading='lazy' /></td>
+<td><div class='param'><code>perplexity=5, learning_rate=410</code></div><img src='img/tsne_p5_lr410.png' loading='lazy' /></td>
+<td><div class='param'><code>perplexity=5, learning_rate=510</code></div><img src='img/tsne_p5_lr510.png' loading='lazy' /></td>
+<td><div class='param'><code>perplexity=5, learning_rate=610</code></div><img src='img/tsne_p5_lr610.png' loading='lazy' /></td>
+<td><div class='param'><code>perplexity=5, learning_rate=710</code></div><img src='img/tsne_p5_lr710.png' loading='lazy' /></td>
+<td><div class='param'><code>perplexity=5, learning_rate=810</code></div><img src='img/tsne_p5_lr810.png' loading='lazy' /></td>
+<td><div class='param'><code>perplexity=5, learning_rate=910</code></div><img src='img/tsne_p5_lr910.png' loading='lazy' /></td>
+</tr>
+<tr>
+<th class='rowhdr'>perplexity=10</th>
+<td><div class='param'><code>perplexity=10, learning_rate=10</code></div><img src='img/tsne_p10_lr10.png' loading='lazy' /></td>
+<td><div class='param'><code>perplexity=10, learning_rate=110</code></div><img src='img/tsne_p10_lr110.png' loading='lazy' /></td>
+<td><div class='param'><code>perplexity=10, learning_rate=210</code></div><img src='img/tsne_p10_lr210.png' loading='lazy' /></td>
+<td><div class='param'><code>perplexity=10, learning_rate=310</code></div><img src='img/tsne_p10_lr310.png' loading='lazy' /></td>
+<td><div class='param'><code>perplexity=10, learning_rate=410</code></div><img src='img/tsne_p10_lr410.png' loading='lazy' /></td>
+<td><div class='param'><code>perplexity=10, learning_rate=510</code></div><img src='img/tsne_p10_lr510.png' loading='lazy' /></td>
+<td><div class='param'><code>perplexity=10, learning_rate=610</code></div><img src='img/tsne_p10_lr610.png' loading='lazy' /></td>
+<td><div class='param'><code>perplexity=10, learning_rate=710</code></div><img src='img/tsne_p10_lr710.png' loading='lazy' /></td>
+<td><div class='param'><code>perplexity=10, learning_rate=810</code></div><img src='img/tsne_p10_lr810.png' loading='lazy' /></td>
+<td><div class='param'><code>perplexity=10, learning_rate=910</code></div><img src='img/tsne_p10_lr910.png' loading='lazy' /></td>
+</tr>
+<tr>
+<th class='rowhdr'>perplexity=15</th>
+<td><div class='param'><code>perplexity=15, learning_rate=10</code></div><img src='img/tsne_p15_lr10.png' loading='lazy' /></td>
+<td><div class='param'><code>perplexity=15, learning_rate=110</code></div><img src='img/tsne_p15_lr110.png' loading='lazy' /></td>
+<td><div class='param'><code>perplexity=15, learning_rate=210</code></div><img src='img/tsne_p15_lr210.png' loading='lazy' /></td>
+<td><div class='param'><code>perplexity=15, learning_rate=310</code></div><img src='img/tsne_p15_lr310.png' loading='lazy' /></td>
+<td><div class='param'><code>perplexity=15, learning_rate=410</code></div><img src='img/tsne_p15_lr410.png' loading='lazy' /></td>
+<td><div class='param'><code>perplexity=15, learning_rate=510</code></div><img src='img/tsne_p15_lr510.png' loading='lazy' /></td>
+<td><div class='param'><code>perplexity=15, learning_rate=610</code></div><img src='img/tsne_p15_lr610.png' loading='lazy' /></td>
+<td><div class='param'><code>perplexity=15, learning_rate=710</code></div><img src='img/tsne_p15_lr710.png' loading='lazy' /></td>
+<td><div class='param'><code>perplexity=15, learning_rate=810</code></div><img src='img/tsne_p15_lr810.png' loading='lazy' /></td>
+<td><div class='param'><code>perplexity=15, learning_rate=910</code></div><img src='img/tsne_p15_lr910.png' loading='lazy' /></td>
+</tr>
+<tr>
+<th class='rowhdr'>perplexity=20</th>
+<td><div class='param'><code>perplexity=20, learning_rate=10</code></div><img src='img/tsne_p20_lr10.png' loading='lazy' /></td>
+<td><div class='param'><code>perplexity=20, learning_rate=110</code></div><img src='img/tsne_p20_lr110.png' loading='lazy' /></td>
+<td><div class='param'><code>perplexity=20, learning_rate=210</code></div><img src='img/tsne_p20_lr210.png' loading='lazy' /></td>
+<td><div class='param'><code>perplexity=20, learning_rate=310</code></div><img src='img/tsne_p20_lr310.png' loading='lazy' /></td>
+<td><div class='param'><code>perplexity=20, learning_rate=410</code></div><img src='img/tsne_p20_lr410.png' loading='lazy' /></td>
+<td><div class='param'><code>perplexity=20, learning_rate=510</code></div><img src='img/tsne_p20_lr510.png' loading='lazy' /></td>
+<td><div class='param'><code>perplexity=20, learning_rate=610</code></div><img src='img/tsne_p20_lr610.png' loading='lazy' /></td>
+<td><div class='param'><code>perplexity=20, learning_rate=710</code></div><img src='img/tsne_p20_lr710.png' loading='lazy' /></td>
+<td><div class='param'><code>perplexity=20, learning_rate=810</code></div><img src='img/tsne_p20_lr810.png' loading='lazy' /></td>
+<td><div class='param'><code>perplexity=20, learning_rate=910</code></div><img src='img/tsne_p20_lr910.png' loading='lazy' /></td>
+</tr>
+<tr>
+<th class='rowhdr'>perplexity=25</th>
+<td><div class='param'><code>perplexity=25, learning_rate=10</code></div><img src='img/tsne_p25_lr10.png' loading='lazy' /></td>
+<td><div class='param'><code>perplexity=25, learning_rate=110</code></div><img src='img/tsne_p25_lr110.png' loading='lazy' /></td>
+<td><div class='param'><code>perplexity=25, learning_rate=210</code></div><img src='img/tsne_p25_lr210.png' loading='lazy' /></td>
+<td><div class='param'><code>perplexity=25, learning_rate=310</code></div><img src='img/tsne_p25_lr310.png' loading='lazy' /></td>
+<td><div class='param'><code>perplexity=25, learning_rate=410</code></div><img src='img/tsne_p25_lr410.png' loading='lazy' /></td>
+<td><div class='param'><code>perplexity=25, learning_rate=510</code></div><img src='img/tsne_p25_lr510.png' loading='lazy' /></td>
+<td><div class='param'><code>perplexity=25, learning_rate=610</code></div><img src='img/tsne_p25_lr610.png' loading='lazy' /></td>
+<td><div class='param'><code>perplexity=25, learning_rate=710</code></div><img src='img/tsne_p25_lr710.png' loading='lazy' /></td>
+<td><div class='param'><code>perplexity=25, learning_rate=810</code></div><img src='img/tsne_p25_lr810.png' loading='lazy' /></td>
+<td><div class='param'><code>perplexity=25, learning_rate=910</code></div><img src='img/tsne_p25_lr910.png' loading='lazy' /></td>
+</tr>
+<tr>
+<th class='rowhdr'>perplexity=30</th>
+<td><div class='param'><code>perplexity=30, learning_rate=10</code></div><img src='img/tsne_p30_lr10.png' loading='lazy' /></td>
+<td><div class='param'><code>perplexity=30, learning_rate=110</code></div><img src='img/tsne_p30_lr110.png' loading='lazy' /></td>
+<td><div class='param'><code>perplexity=30, learning_rate=210</code></div><img src='img/tsne_p30_lr210.png' loading='lazy' /></td>
+<td><div class='param'><code>perplexity=30, learning_rate=310</code></div><img src='img/tsne_p30_lr310.png' loading='lazy' /></td>
+<td><div class='param'><code>perplexity=30, learning_rate=410</code></div><img src='img/tsne_p30_lr410.png' loading='lazy' /></td>
+<td><div class='param'><code>perplexity=30, learning_rate=510</code></div><img src='img/tsne_p30_lr510.png' loading='lazy' /></td>
+<td><div class='param'><code>perplexity=30, learning_rate=610</code></div><img src='img/tsne_p30_lr610.png' loading='lazy' /></td>
+<td><div class='param'><code>perplexity=30, learning_rate=710</code></div><img src='img/tsne_p30_lr710.png' loading='lazy' /></td>
+<td><div class='param'><code>perplexity=30, learning_rate=810</code></div><img src='img/tsne_p30_lr810.png' loading='lazy' /></td>
+<td><div class='param'><code>perplexity=30, learning_rate=910</code></div><img src='img/tsne_p30_lr910.png' loading='lazy' /></td>
+</tr>
+<tr>
+<th class='rowhdr'>perplexity=35</th>
+<td><div class='param'><code>perplexity=35, learning_rate=10</code></div><img src='img/tsne_p35_lr10.png' loading='lazy' /></td>
+<td><div class='param'><code>perplexity=35, learning_rate=110</code></div><img src='img/tsne_p35_lr110.png' loading='lazy' /></td>
+<td><div class='param'><code>perplexity=35, learning_rate=210</code></div><img src='img/tsne_p35_lr210.png' loading='lazy' /></td>
+<td><div class='param'><code>perplexity=35, learning_rate=310</code></div><img src='img/tsne_p35_lr310.png' loading='lazy' /></td>
+<td><div class='param'><code>perplexity=35, learning_rate=410</code></div><img src='img/tsne_p35_lr410.png' loading='lazy' /></td>
+<td><div class='param'><code>perplexity=35, learning_rate=510</code></div><img src='img/tsne_p35_lr510.png' loading='lazy' /></td>
+<td><div class='param'><code>perplexity=35, learning_rate=610</code></div><img src='img/tsne_p35_lr610.png' loading='lazy' /></td>
+<td><div class='param'><code>perplexity=35, learning_rate=710</code></div><img src='img/tsne_p35_lr710.png' loading='lazy' /></td>
+<td><div class='param'><code>perplexity=35, learning_rate=810</code></div><img src='img/tsne_p35_lr810.png' loading='lazy' /></td>
+<td><div class='param'><code>perplexity=35, learning_rate=910</code></div><img src='img/tsne_p35_lr910.png' loading='lazy' /></td>
+</tr>
+<tr>
+<th class='rowhdr'>perplexity=40</th>
+<td><div class='param'><code>perplexity=40, learning_rate=10</code></div><img src='img/tsne_p40_lr10.png' loading='lazy' /></td>
+<td><div class='param'><code>perplexity=40, learning_rate=110</code></div><img src='img/tsne_p40_lr110.png' loading='lazy' /></td>
+<td><div class='param'><code>perplexity=40, learning_rate=210</code></div><img src='img/tsne_p40_lr210.png' loading='lazy' /></td>
+<td><div class='param'><code>perplexity=40, learning_rate=310</code></div><img src='img/tsne_p40_lr310.png' loading='lazy' /></td>
+<td><div class='param'><code>perplexity=40, learning_rate=410</code></div><img src='img/tsne_p40_lr410.png' loading='lazy' /></td>
+<td><div class='param'><code>perplexity=40, learning_rate=510</code></div><img src='img/tsne_p40_lr510.png' loading='lazy' /></td>
+<td><div class='param'><code>perplexity=40, learning_rate=610</code></div><img src='img/tsne_p40_lr610.png' loading='lazy' /></td>
+<td><div class='param'><code>perplexity=40, learning_rate=710</code></div><img src='img/tsne_p40_lr710.png' loading='lazy' /></td>
+<td><div class='param'><code>perplexity=40, learning_rate=810</code></div><img src='img/tsne_p40_lr810.png' loading='lazy' /></td>
+<td><div class='param'><code>perplexity=40, learning_rate=910</code></div><img src='img/tsne_p40_lr910.png' loading='lazy' /></td>
+</tr>
+<tr>
+<th class='rowhdr'>perplexity=45</th>
+<td><div class='param'><code>perplexity=45, learning_rate=10</code></div><img src='img/tsne_p45_lr10.png' loading='lazy' /></td>
+<td><div class='param'><code>perplexity=45, learning_rate=110</code></div><img src='img/tsne_p45_lr110.png' loading='lazy' /></td>
+<td><div class='param'><code>perplexity=45, learning_rate=210</code></div><img src='img/tsne_p45_lr210.png' loading='lazy' /></td>
+<td><div class='param'><code>perplexity=45, learning_rate=310</code></div><img src='img/tsne_p45_lr310.png' loading='lazy' /></td>
+<td><div class='param'><code>perplexity=45, learning_rate=410</code></div><img src='img/tsne_p45_lr410.png' loading='lazy' /></td>
+<td><div class='param'><code>perplexity=45, learning_rate=510</code></div><img src='img/tsne_p45_lr510.png' loading='lazy' /></td>
+<td><div class='param'><code>perplexity=45, learning_rate=610</code></div><img src='img/tsne_p45_lr610.png' loading='lazy' /></td>
+<td><div class='param'><code>perplexity=45, learning_rate=710</code></div><img src='img/tsne_p45_lr710.png' loading='lazy' /></td>
+<td><div class='param'><code>perplexity=45, learning_rate=810</code></div><img src='img/tsne_p45_lr810.png' loading='lazy' /></td>
+<td><div class='param'><code>perplexity=45, learning_rate=910</code></div><img src='img/tsne_p45_lr910.png' loading='lazy' /></td>
+</tr>
+</table>
+</div>
+</body>
+</html>
