@@ -122,6 +122,62 @@ def restore_remotes(root: Path, remotes: list[dict[str, str]]) -> None:
             run(["git", "remote", "set-url", "--push", name, push_url], cwd=root)
 
 
+def current_branch(root: Path) -> str:
+    return run(["git", "branch", "--show-current"], cwd=root, capture_output=True).stdout.strip()
+
+
+def capture_branch_upstreams(root: Path) -> list[dict[str, str]]:
+    proc = run(
+        ["git", "for-each-ref", "--format=%(refname:short)\t%(upstream:short)", "refs/heads"],
+        cwd=root,
+        capture_output=True,
+    )
+    branch_upstreams: list[dict[str, str]] = []
+    for line in proc.stdout.splitlines():
+        if not line.strip():
+            continue
+        branch, _, upstream = line.partition("\t")
+        if not upstream:
+            continue
+        remote, sep, merge_short = upstream.partition("/")
+        if not sep or not merge_short:
+            continue
+        branch_upstreams.append(
+            {
+                "branch": branch.strip(),
+                "remote": remote.strip(),
+                "merge_ref": f"refs/heads/{merge_short.strip()}",
+            }
+        )
+    return branch_upstreams
+
+
+def restore_branch_upstreams(
+    root: Path,
+    branch_upstreams: list[dict[str, str]],
+    remotes: list[dict[str, str]],
+    *,
+    default_branch: str,
+) -> None:
+    remote_names = {remote["name"] for remote in remotes}
+    restored_branches: set[str] = set()
+
+    for item in branch_upstreams:
+        branch = item["branch"]
+        remote = item["remote"]
+        merge_ref = item["merge_ref"]
+        if remote not in remote_names:
+            continue
+        run(["git", "config", f"branch.{branch}.remote", remote], cwd=root)
+        run(["git", "config", f"branch.{branch}.merge", merge_ref], cwd=root)
+        restored_branches.add(branch)
+
+    if default_branch and default_branch not in restored_branches and remotes:
+        primary_remote = remotes[0]["name"]
+        run(["git", "config", f"branch.{default_branch}.remote", primary_remote], cwd=root)
+        run(["git", "config", f"branch.{default_branch}.merge", f"refs/heads/{default_branch}"], cwd=root)
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -172,6 +228,8 @@ def main() -> None:
     bundle_path = Path(args.backup_bundle).expanduser().resolve() if args.backup_bundle else backup_bundle_path(root)
     bundle_path.parent.mkdir(parents=True, exist_ok=True)
     remotes = capture_remotes(root)
+    branch = current_branch(root)
+    branch_upstreams = capture_branch_upstreams(root)
 
     print(f"Repository: {root}")
     print(f"Docs directory: {docs_rel}")
@@ -206,6 +264,9 @@ def main() -> None:
         if remotes:
             restore_remotes(root, remotes)
             print("Restored git remotes removed by git filter-repo.")
+            restore_branch_upstreams(root, branch_upstreams, remotes, default_branch=branch)
+            if branch:
+                print(f"Restored upstream tracking for local branches (current branch: {branch}).")
 
         restored_docs = root / docs_rel
         if restored_docs.exists():
