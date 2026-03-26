@@ -27,7 +27,6 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
-import sys
 import tempfile
 
 
@@ -92,6 +91,37 @@ def backup_bundle_path(root: Path) -> Path:
     return backup_dir / f"{root.name}-pre-docs-rewrite-{timestamp}.bundle"
 
 
+def capture_remotes(root: Path) -> list[dict[str, str]]:
+    proc = run(["git", "remote"], cwd=root, capture_output=True)
+    remotes: list[dict[str, str]] = []
+    for name in [line.strip() for line in proc.stdout.splitlines() if line.strip()]:
+        fetch_url = run(["git", "remote", "get-url", name], cwd=root, capture_output=True).stdout.strip()
+        try:
+            push_url = run(["git", "remote", "get-url", "--push", name], cwd=root, capture_output=True).stdout.strip()
+        except subprocess.CalledProcessError:
+            push_url = fetch_url
+        remotes.append({"name": name, "fetch_url": fetch_url, "push_url": push_url})
+    return remotes
+
+
+def restore_remotes(root: Path, remotes: list[dict[str, str]]) -> None:
+    existing = {
+        line.strip()
+        for line in run(["git", "remote"], cwd=root, capture_output=True).stdout.splitlines()
+        if line.strip()
+    }
+    for remote in remotes:
+        name = remote["name"]
+        fetch_url = remote["fetch_url"]
+        push_url = remote["push_url"]
+        if name in existing:
+            run(["git", "remote", "set-url", name, fetch_url], cwd=root)
+        else:
+            run(["git", "remote", "add", name, fetch_url], cwd=root)
+        if push_url and push_url != fetch_url:
+            run(["git", "remote", "set-url", "--push", name, push_url], cwd=root)
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -141,10 +171,17 @@ def main() -> None:
 
     bundle_path = Path(args.backup_bundle).expanduser().resolve() if args.backup_bundle else backup_bundle_path(root)
     bundle_path.parent.mkdir(parents=True, exist_ok=True)
+    remotes = capture_remotes(root)
 
     print(f"Repository: {root}")
     print(f"Docs directory: {docs_rel}")
     print(f"Backup bundle: {bundle_path}")
+    if remotes:
+        print("Remotes to restore after rewrite:")
+        for remote in remotes:
+            print(f"  - {remote['name']}: {remote['fetch_url']}")
+    else:
+        print("No remotes are configured in this clone; none will be restored.")
     print("This will rewrite git history for every branch and tag.")
     print("After it finishes, you will need to force-push rewritten refs.")
 
@@ -166,6 +203,10 @@ def main() -> None:
         )
         print(f"Removed {docs_rel} from prior history.")
 
+        if remotes:
+            restore_remotes(root, remotes)
+            print("Restored git remotes removed by git filter-repo.")
+
         restored_docs = root / docs_rel
         if restored_docs.exists():
             shutil.rmtree(restored_docs)
@@ -177,11 +218,16 @@ def main() -> None:
 
     print("Done.")
     print(f"Backup bundle kept at: {bundle_path}")
+    if remotes:
+        primary_remote = remotes[0]["name"]
+        print(f"Restored remotes: {', '.join(remote['name'] for remote in remotes)}")
+    else:
+        primary_remote = "origin"
     print("Next steps:")
     print("  1. Verify the rewritten history and the restored docs snapshot.")
     print("  2. Force-push the rewritten refs, for example:")
-    print("     git push --force-with-lease --all")
-    print("     git push --force-with-lease --tags")
+    print(f"     git push --force-with-lease {primary_remote} --all")
+    print(f"     git push --force-with-lease {primary_remote} --tags")
     print("  3. Tell collaborators to re-clone or hard-reset to the rewritten history.")
 
 
