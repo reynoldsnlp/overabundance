@@ -160,6 +160,11 @@ def parse_args() -> argparse.Namespace:
         default=0.05,
         help="Significance threshold used to convert human p-values into expected cluster groupings.",
     )
+    parser.add_argument(
+        "--skip-global",
+        action="store_true",
+        help="Skip pooled-global clustering metrics and only compute per-lexeme results.",
+    )
     return parser.parse_args()
 
 
@@ -716,6 +721,7 @@ def _worker_eval_task(task: Dict[str, Any]) -> Dict[str, Any]:
     bootstrap_samples = int(task["bootstrap_samples"])
     seed = int(task["seed"])
     global_label_scope = str(task["global_label_scope"])
+    skip_global = bool(task.get("skip_global", False))
     label_schemes = _resolve_label_schemes(str(task.get("label_scheme", "both")))
     conditioning_by_meaning_path = str(task.get("conditioning_by_meaning_path", "conditioning_by_meaning.csv"))
     conditioning_by_form_path = str(task.get("conditioning_by_form_path", "conditioning_by_form.csv"))
@@ -806,48 +812,49 @@ def _worker_eval_task(task: Dict[str, Any]) -> Dict[str, Any]:
             )
 
     global_rows: List[Dict[str, Any]] = []
-    if heartbeat_file:
-        _append_heartbeat(
-            heartbeat_file,
-            f"{time.strftime('%Y-%m-%d %H:%M:%S')} GLOBAL_START task={task_id} model={model_stub} heads={head_label}",
-        )
-    human_global_labels = _human_expected_labels(all_points, human_cond=human_cond, alpha=human_p_alpha)
-    for label_scheme in label_schemes:
-        if label_scheme == "raw_meaning":
-            base_labels = [str(r["meaning_index"]) for r in all_points]
-        else:
-            base_labels = human_global_labels
-
-        if global_label_scope == "lexeme_prefixed":
-            labels = [f"{r['lexeme']}::{lab}" for r, lab in zip(all_points, base_labels)]
-        else:
-            labels = base_labels
-
-        for dist in ["cosine", "euclidean"]:
-            met = _per_lexeme_metrics(
-                all_points,
-                metric=dist,
-                bootstrap_samples=bootstrap_samples,
-                rng=rng,
-                label_values=labels,
+    if not skip_global:
+        if heartbeat_file:
+            _append_heartbeat(
+                heartbeat_file,
+                f"{time.strftime('%Y-%m-%d %H:%M:%S')} GLOBAL_START task={task_id} model={model_stub} heads={head_label}",
             )
-            met["model"] = model_stub
-            met["lexeme"] = "__ALL__"
-            met["distance"] = dist
-            met["embedding_source"] = embedding_source
-            met["head_indices"] = head_label
-            met["condition"] = "global_pooled"
-            met["global_label_scope"] = global_label_scope
-            met["label_scheme"] = label_scheme
-            global_rows.append(met)
-            if heartbeat_file:
-                _append_heartbeat(
-                    heartbeat_file,
-                    (
-                        f"{time.strftime('%Y-%m-%d %H:%M:%S')} GLOBAL_STEP task={task_id} "
-                        f"model={model_stub} heads={head_label} label_scheme={label_scheme} distance={dist}"
-                    ),
+        human_global_labels = _human_expected_labels(all_points, human_cond=human_cond, alpha=human_p_alpha)
+        for label_scheme in label_schemes:
+            if label_scheme == "raw_meaning":
+                base_labels = [str(r["meaning_index"]) for r in all_points]
+            else:
+                base_labels = human_global_labels
+
+            if global_label_scope == "lexeme_prefixed":
+                labels = [f"{r['lexeme']}::{lab}" for r, lab in zip(all_points, base_labels)]
+            else:
+                labels = base_labels
+
+            for dist in ["cosine", "euclidean"]:
+                met = _per_lexeme_metrics(
+                    all_points,
+                    metric=dist,
+                    bootstrap_samples=bootstrap_samples,
+                    rng=rng,
+                    label_values=labels,
                 )
+                met["model"] = model_stub
+                met["lexeme"] = "__ALL__"
+                met["distance"] = dist
+                met["embedding_source"] = embedding_source
+                met["head_indices"] = head_label
+                met["condition"] = "global_pooled"
+                met["global_label_scope"] = global_label_scope
+                met["label_scheme"] = label_scheme
+                global_rows.append(met)
+                if heartbeat_file:
+                    _append_heartbeat(
+                        heartbeat_file,
+                        (
+                            f"{time.strftime('%Y-%m-%d %H:%M:%S')} GLOBAL_STEP task={task_id} "
+                            f"model={model_stub} heads={head_label} label_scheme={label_scheme} distance={dist}"
+                        ),
+                    )
 
     metric_cols = [
         "silhouette",
@@ -956,6 +963,7 @@ def main() -> None:
                     "conditioning_by_meaning_path": args.conditioning_by_meaning_path,
                     "conditioning_by_form_path": args.conditioning_by_form_path,
                     "human_p_alpha": args.human_p_alpha,
+                    "skip_global": args.skip_global,
                     "heartbeat_file": args.heartbeat_file,
                     "heartbeat_every": args.heartbeat_every,
                 }
@@ -1009,9 +1017,12 @@ def main() -> None:
         print("No usable records found for metrics.")
         return
 
-    print(f"Saved {per_lexeme_path}")
-    print(f"Saved {global_path}")
-    print(f"Saved {aggregate_path}")
+    if per_written:
+        print(f"Saved {per_lexeme_path}")
+    if global_written:
+        print(f"Saved {global_path}")
+    if agg_written:
+        print(f"Saved {aggregate_path}")
     if charts_enabled and os.path.exists(progress_chart_path):
         print(f"Saved {progress_chart_path}")
 
