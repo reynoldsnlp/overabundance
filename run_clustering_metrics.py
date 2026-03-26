@@ -18,12 +18,15 @@ as fixed cluster labels and evaluates cohesion/separation per lexeme.
 from __future__ import annotations
 
 import argparse
+import csv
 import glob
 import itertools
 import multiprocessing as mp
 import os
+import re
 import time
 from collections import Counter
+import difflib
 from typing import Any, Dict, List, Optional
 
 import numpy as np
@@ -36,6 +39,7 @@ import overabundance_common as common
 
 
 _WORKER_CACHE_BY_PATH: Dict[str, Dict[Any, Dict[str, Any]]] = {}
+_WORKER_HUMAN_COND_CACHE: Dict[tuple[str, str], Dict[str, Any]] = {}
 
 
 def parse_args() -> argparse.Namespace:
@@ -132,6 +136,30 @@ def parse_args() -> argparse.Namespace:
         default=5,
         help="Write worker heartbeat every N lexemes per task.",
     )
+    parser.add_argument(
+        "--label-scheme",
+        choices=["raw_meaning", "human_expected", "both"],
+        default="both",
+        help="Ground-truth label regime to score against.",
+    )
+    parser.add_argument(
+        "--conditioning-by-meaning-path",
+        type=str,
+        default="conditioning_by_meaning.csv",
+        help="CSV with per-meaning human conditioning tests.",
+    )
+    parser.add_argument(
+        "--conditioning-by-form-path",
+        type=str,
+        default="conditioning_by_form.csv",
+        help="CSV with per-lemma/per-mps omnibus human conditioning tests.",
+    )
+    parser.add_argument(
+        "--human-p-alpha",
+        type=float,
+        default=0.05,
+        help="Significance threshold used to convert human p-values into expected cluster groupings.",
+    )
     return parser.parse_args()
 
 
@@ -168,6 +196,184 @@ def _head_label(embedding_source: str, head_indices: Optional[List[int]]) -> str
     if head_indices is None:
         return "all"
     return ",".join(str(i) for i in head_indices)
+
+
+def _normalize_text(text: Any) -> str:
+    if text is None:
+        return ""
+    s = str(text).strip()
+    s = " ".join(s.split())
+    s = s.replace("“", '"').replace("”", '"').replace("’", "'").replace("‘", "'")
+    return s
+
+
+def _meaning_match_key(text: Any) -> str:
+    s = _normalize_text(text)
+    if not s:
+        return s
+    s = re.sub(r'\.\s*\(I used[^)]*\)\s*$', "", s, flags=re.IGNORECASE)
+    s = re.sub(r'\.\s*I used.*$', "", s, flags=re.IGNORECASE)
+    return s.strip()
+
+
+def _load_human_conditioning(by_form_path: str, by_meaning_path: str) -> Dict[str, Any]:
+    cache_key = (by_form_path, by_meaning_path)
+    cached = _WORKER_HUMAN_COND_CACHE.get(cache_key)
+    if cached is not None:
+        return cached
+
+    overall_p: Dict[tuple[str, str], float] = {}
+    meaning_rows: Dict[tuple[str, str], List[Dict[str, Any]]] = {}
+
+    with open(by_form_path, newline="", encoding="latin-1") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            key = (_normalize_text(row.get("lemma")), _normalize_text(row.get("msps")))
+            overall_p[key] = _safe_float(row.get("p_value"))
+
+    tmp: Dict[tuple[str, str], List[Dict[str, Any]]] = {}
+    with open(by_meaning_path, newline="", encoding="latin-1") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            lemma = _normalize_text(row.get("lemma"))
+            mps = _normalize_text(row.get("msps"))
+            if not lemma or not mps:
+                continue
+            out = dict(row)
+            out["lemma"] = lemma
+            out["msps"] = mps
+            out["def_norm"] = _normalize_text(row.get("def"))
+            out["def_match_key"] = _meaning_match_key(row.get("def"))
+            out["p_eq"] = _safe_float(row.get("p_eq"))
+            out["p_cat"] = _safe_float(row.get("p_cat"))
+            out["form_1_freq"] = _safe_float(row.get("form_1_freq"))
+            out["form_2_freq"] = _safe_float(row.get("form_2_freq"))
+            tmp.setdefault((lemma, mps), []).append(out)
+
+    meaning_rows = tmp
+    cached = {"overall_p": overall_p, "meaning_rows": meaning_rows}
+    _WORKER_HUMAN_COND_CACHE[cache_key] = cached
+    return cached
+
+
+def _conditioning_bucket(row: Dict[str, Any]) -> str:
+    cond_type = str(row.get("cond_type", "")).strip() or "other"
+    f1 = _safe_float(row.get("form_1_freq"))
+    f2 = _safe_float(row.get("form_2_freq"))
+    dominant = _normalize_text(row.get("form_1")) if f1 >= f2 else _normalize_text(row.get("form_2"))
+    if cond_type == "no_cond":
+        return "no_cond"
+    if dominant:
+        return f"{cond_type}:{dominant}"
+    return cond_type
+
+
+def _match_human_rows_to_meanings(
+    actual_meanings: Dict[str, Dict[str, str]],
+    conditioning_rows: List[Dict[str, Any]],
+) -> Dict[str, Dict[str, Any]]:
+    matched: Dict[str, Dict[str, Any]] = {}
+    used_actual: set[str] = set()
+    actual_by_match_key: Dict[str, List[Dict[str, str]]] = {}
+
+    for actual in actual_meanings.values():
+        match_key = _meaning_match_key(actual["meaning"])
+        actual_by_match_key.setdefault(match_key, []).append(actual)
+
+    for cond_row in conditioning_rows:
+        key = cond_row["def_norm"]
+        actual = actual_meanings.get(key)
+        if actual is None:
+            continue
+        mid = actual["meaning_index"]
+        matched[mid] = cond_row
+        used_actual.add(key)
+
+    for cond_row in conditioning_rows:
+        if cond_row in matched.values():
+            continue
+        match_key = cond_row.get("def_match_key", cond_row["def_norm"])
+        candidates = [
+            actual
+            for actual in actual_by_match_key.get(match_key, [])
+            if actual["meaning"] not in used_actual
+        ]
+        if len(candidates) != 1:
+            continue
+        actual = candidates[0]
+        mid = actual["meaning_index"]
+        matched[mid] = cond_row
+        used_actual.add(actual["meaning"])
+
+    remaining_actual = [k for k in actual_meanings.keys() if k not in used_actual]
+    for cond_row in conditioning_rows:
+        if cond_row in matched.values():
+            continue
+        best_key = None
+        best_score = 0.0
+        for actual_key in remaining_actual:
+            score = difflib.SequenceMatcher(
+                None,
+                cond_row.get("def_match_key", cond_row["def_norm"]),
+                _meaning_match_key(actual_key),
+            ).ratio()
+            if score > best_score:
+                best_score = score
+                best_key = actual_key
+        if best_key is not None and best_score >= 0.88:
+            mid = actual_meanings[best_key]["meaning_index"]
+            matched[mid] = cond_row
+            remaining_actual = [k for k in remaining_actual if k != best_key]
+
+    return matched
+
+
+def _human_expected_labels(
+    rows: List[Dict[str, Any]],
+    *,
+    human_cond: Dict[str, Any],
+    alpha: float,
+) -> List[str]:
+    labels = ["human::other"] * len(rows)
+    by_lexeme_mps: Dict[tuple[str, str], List[int]] = {}
+    for idx, row in enumerate(rows):
+        lemma = _normalize_text(row.get("lexeme"))
+        mps = _normalize_text(row.get("mps"))
+        by_lexeme_mps.setdefault((lemma, mps), []).append(idx)
+
+    for (lemma, mps), idxs in by_lexeme_mps.items():
+        if not idxs:
+            continue
+        overall_p = human_cond["overall_p"].get((lemma, mps), float("nan"))
+        if not np.isfinite(overall_p) or overall_p >= alpha:
+            for idx in idxs:
+                labels[idx] = f"{mps}::merged"
+            continue
+
+        actual_meanings: Dict[str, Dict[str, str]] = {}
+        for idx in idxs:
+            meaning = _normalize_text(rows[idx].get("meaning"))
+            mid = _normalize_text(rows[idx].get("meaning_index"))
+            if meaning and mid:
+                actual_meanings.setdefault(meaning, {"meaning_index": mid, "meaning": meaning})
+
+        conditioning_rows = human_cond["meaning_rows"].get((lemma, mps), [])
+        matched = _match_human_rows_to_meanings(actual_meanings, conditioning_rows)
+
+        bucket_by_mid: Dict[str, str] = {}
+        bucket_counts: Counter[str] = Counter()
+        for mid, cond_row in matched.items():
+            bucket = _conditioning_bucket(cond_row)
+            bucket_by_mid[mid] = bucket
+            bucket_counts[bucket] += 1
+
+        default_bucket = bucket_counts.most_common(1)[0][0] if bucket_counts else "other"
+        for idx in idxs:
+            mid = _normalize_text(rows[idx].get("meaning_index"))
+            bucket = bucket_by_mid.get(mid, default_bucket)
+            labels[idx] = f"{mps}::{bucket}"
+
+    return labels
 
 
 def _resolve_head_configs(args: argparse.Namespace, cache_paths: List[str], explicit: Optional[List[int]]) -> List[Optional[List[int]]]:
@@ -331,6 +537,12 @@ def _bootstrap_silhouette(X: np.ndarray, y: np.ndarray, metric: str, n_samples: 
     lo = float(np.percentile(vals, 2.5))
     hi = float(np.percentile(vals, 97.5))
     return lo, hi
+
+
+def _resolve_label_schemes(raw: str) -> List[str]:
+    if raw == "both":
+        return ["raw_meaning", "human_expected"]
+    return [raw]
 
 
 def _per_lexeme_metrics(
@@ -504,11 +716,16 @@ def _worker_eval_task(task: Dict[str, Any]) -> Dict[str, Any]:
     bootstrap_samples = int(task["bootstrap_samples"])
     seed = int(task["seed"])
     global_label_scope = str(task["global_label_scope"])
+    label_schemes = _resolve_label_schemes(str(task.get("label_scheme", "both")))
+    conditioning_by_meaning_path = str(task.get("conditioning_by_meaning_path", "conditioning_by_meaning.csv"))
+    conditioning_by_form_path = str(task.get("conditioning_by_form_path", "conditioning_by_form.csv"))
+    human_p_alpha = float(task.get("human_p_alpha", 0.05))
     heartbeat_file = str(task.get("heartbeat_file", "")).strip()
     heartbeat_every = max(1, int(task.get("heartbeat_every", 5)))
 
     rng = np.random.default_rng(seed + task_id * 9973)
     cache = _load_cache_for_worker(cache_path)
+    human_cond = _load_human_conditioning(conditioning_by_form_path, conditioning_by_meaning_path)
 
     if heartbeat_file:
         _append_heartbeat(
@@ -544,7 +761,9 @@ def _worker_eval_task(task: Dict[str, Any]) -> Dict[str, Any]:
         point = {
             "vector": vec,
             "meaning_index": str(meaning_index),
+            "meaning": _normalize_text(rec.get("meaning")),
             "lexeme": lexeme,
+            "mps": _normalize_text(rec.get("mps")),
             "token_mismatch": token_mismatch,
             "missing_meaning": False,
         }
@@ -556,21 +775,29 @@ def _worker_eval_task(task: Dict[str, Any]) -> Dict[str, Any]:
 
     lex_items = sorted(by_lexeme.items())
     for lex_i, (lexeme, rows) in enumerate(lex_items, start=1):
-        for dist in ["cosine", "euclidean"]:
-            met = _per_lexeme_metrics(
-                rows,
-                metric=dist,
-                bootstrap_samples=bootstrap_samples,
-                rng=rng,
-            )
-            met["model"] = model_stub
-            met["lexeme"] = lexeme
-            met["distance"] = dist
-            met["embedding_source"] = embedding_source
-            met["head_indices"] = head_label
-            met["condition"] = "per_lexeme"
-            met["global_label_scope"] = "meaning_only"
-            per_rows.append(met)
+        label_values_by_scheme = {
+            "raw_meaning": None,
+            "human_expected": _human_expected_labels(rows, human_cond=human_cond, alpha=human_p_alpha),
+        }
+        for label_scheme in label_schemes:
+            label_values = label_values_by_scheme[label_scheme]
+            for dist in ["cosine", "euclidean"]:
+                met = _per_lexeme_metrics(
+                    rows,
+                    metric=dist,
+                    bootstrap_samples=bootstrap_samples,
+                    rng=rng,
+                    label_values=label_values,
+                )
+                met["model"] = model_stub
+                met["lexeme"] = lexeme
+                met["distance"] = dist
+                met["embedding_source"] = embedding_source
+                met["head_indices"] = head_label
+                met["condition"] = "per_lexeme"
+                met["global_label_scope"] = "meaning_only"
+                met["label_scheme"] = label_scheme
+                per_rows.append(met)
 
         if heartbeat_file and (lex_i == 1 or lex_i == len(lex_items) or (lex_i % heartbeat_every) == 0):
             _append_heartbeat(
@@ -579,27 +806,48 @@ def _worker_eval_task(task: Dict[str, Any]) -> Dict[str, Any]:
             )
 
     global_rows: List[Dict[str, Any]] = []
-    for dist in ["cosine", "euclidean"]:
-        if global_label_scope == "lexeme_prefixed":
-            labels = [f"{r['lexeme']}::{r['meaning_index']}" for r in all_points]
-        else:
-            labels = [str(r["meaning_index"]) for r in all_points]
-
-        met = _per_lexeme_metrics(
-            all_points,
-            metric=dist,
-            bootstrap_samples=bootstrap_samples,
-            rng=rng,
-            label_values=labels,
+    if heartbeat_file:
+        _append_heartbeat(
+            heartbeat_file,
+            f"{time.strftime('%Y-%m-%d %H:%M:%S')} GLOBAL_START task={task_id} model={model_stub} heads={head_label}",
         )
-        met["model"] = model_stub
-        met["lexeme"] = "__ALL__"
-        met["distance"] = dist
-        met["embedding_source"] = embedding_source
-        met["head_indices"] = head_label
-        met["condition"] = "global_pooled"
-        met["global_label_scope"] = global_label_scope
-        global_rows.append(met)
+    human_global_labels = _human_expected_labels(all_points, human_cond=human_cond, alpha=human_p_alpha)
+    for label_scheme in label_schemes:
+        if label_scheme == "raw_meaning":
+            base_labels = [str(r["meaning_index"]) for r in all_points]
+        else:
+            base_labels = human_global_labels
+
+        if global_label_scope == "lexeme_prefixed":
+            labels = [f"{r['lexeme']}::{lab}" for r, lab in zip(all_points, base_labels)]
+        else:
+            labels = base_labels
+
+        for dist in ["cosine", "euclidean"]:
+            met = _per_lexeme_metrics(
+                all_points,
+                metric=dist,
+                bootstrap_samples=bootstrap_samples,
+                rng=rng,
+                label_values=labels,
+            )
+            met["model"] = model_stub
+            met["lexeme"] = "__ALL__"
+            met["distance"] = dist
+            met["embedding_source"] = embedding_source
+            met["head_indices"] = head_label
+            met["condition"] = "global_pooled"
+            met["global_label_scope"] = global_label_scope
+            met["label_scheme"] = label_scheme
+            global_rows.append(met)
+            if heartbeat_file:
+                _append_heartbeat(
+                    heartbeat_file,
+                    (
+                        f"{time.strftime('%Y-%m-%d %H:%M:%S')} GLOBAL_STEP task={task_id} "
+                        f"model={model_stub} heads={head_label} label_scheme={label_scheme} distance={dist}"
+                    ),
+                )
 
     metric_cols = [
         "silhouette",
@@ -614,7 +862,7 @@ def _worker_eval_task(task: Dict[str, Any]) -> Dict[str, Any]:
     aggregate_rows: List[Dict[str, Any]] = []
     if per_rows:
         per_df = pd.DataFrame(per_rows)
-        for distance, sub in per_df.groupby("distance"):
+        for (distance, label_scheme), sub in per_df.groupby(["distance", "label_scheme"]):
             agg = _aggregate(sub, metric_cols)
             for _, row in agg.iterrows():
                 out = row.to_dict()
@@ -622,6 +870,7 @@ def _worker_eval_task(task: Dict[str, Any]) -> Dict[str, Any]:
                 out["model"] = model_stub
                 out["head_indices"] = head_label
                 out["embedding_source"] = embedding_source
+                out["label_scheme"] = label_scheme
                 aggregate_rows.append(out)
 
     result = {
@@ -703,6 +952,10 @@ def main() -> None:
                     "bootstrap_samples": args.bootstrap_samples,
                     "seed": args.seed,
                     "global_label_scope": args.global_label_scope,
+                    "label_scheme": args.label_scheme,
+                    "conditioning_by_meaning_path": args.conditioning_by_meaning_path,
+                    "conditioning_by_form_path": args.conditioning_by_form_path,
+                    "human_p_alpha": args.human_p_alpha,
                     "heartbeat_file": args.heartbeat_file,
                     "heartbeat_every": args.heartbeat_every,
                 }
