@@ -29,6 +29,7 @@ CANONICAL_LABEL_TYPES = (
     "conditioned-keep",
     "conditioned-collapse",
     "conditioned-exclude",
+    "cat-only",
 )
 
 
@@ -38,6 +39,7 @@ def _resolve_label_type(raw: str) -> str:
         "joint_keep": "conditioned-keep",
         "joint_collapse": "conditioned-collapse",
         "joint_exclude": "conditioned-exclude",
+        "cat_only": "cat-only",
     }
     value = alias.get(str(raw).strip().lower(), str(raw).strip().lower())
     if value not in CANONICAL_LABEL_TYPES:
@@ -101,6 +103,7 @@ def _label_title(label_type: str) -> str:
         "conditioned-keep": "Conditioned Labels (Keep Prob)",
         "conditioned-collapse": "Conditioned Labels (Collapse Prob)",
         "conditioned-exclude": "Conditioned Labels (Exclude Prob)",
+        "cat-only": "Cat-Only Form-Meaning Labels",
     }
     return mapping.get(label_type, label_type)
 

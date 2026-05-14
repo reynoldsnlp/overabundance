@@ -410,8 +410,7 @@ def main() -> None:
                 label_col = LABEL_COLUMN_BY_TYPE[label_type]
                 validity_col = VALIDITY_COLUMN_BY_TYPE[label_type]
                 df_eval = df_sys[df_sys[validity_col]].copy()
-                if label_type.startswith("conditioned-"):
-                    df_eval = df_eval[df_eval[label_col].notna()].copy()
+                df_eval = df_eval[df_eval[label_col].notna()].copy()
                 if df_eval.empty:
                     continue
 

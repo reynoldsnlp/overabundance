@@ -41,6 +41,7 @@ CANONICAL_LABEL_TYPES = (
     "conditioned-keep",
     "conditioned-collapse",
     "conditioned-exclude",
+    "cat-only",
 )
 
 LABEL_COLUMN_BY_TYPE = {
@@ -49,6 +50,7 @@ LABEL_COLUMN_BY_TYPE = {
     "conditioned-keep": "conditioned_keep_label",
     "conditioned-collapse": "conditioned_collapse_label",
     "conditioned-exclude": "conditioned_exclude_label",
+    "cat-only": "cat_only_label",
 }
 
 VALIDITY_COLUMN_BY_TYPE = {
@@ -57,6 +59,7 @@ VALIDITY_COLUMN_BY_TYPE = {
     "conditioned-keep": "conditioned_ok",
     "conditioned-collapse": "conditioned_ok",
     "conditioned-exclude": "conditioned_ok",
+    "cat-only": "conditioned_ok",
 }
 
 
@@ -122,7 +125,7 @@ def parse_args() -> argparse.Namespace:
         default="raw,form,conditioned-exclude",
         help=(
             "Comma-separated label types to score. Supported values: "
-            "raw, form, conditioned-keep, conditioned-collapse, conditioned-exclude, "
+            "raw, form, conditioned-keep, conditioned-collapse, conditioned-exclude, cat-only, "
             "all_conditioned, all."
         ),
     )
@@ -199,8 +202,14 @@ def _resolve_label_types(raw: str) -> List[str]:
         "joint_keep": "conditioned-keep",
         "joint_collapse": "conditioned-collapse",
         "joint_exclude": "conditioned-exclude",
+        "cat_only": "cat-only",
     }
-    conditioned = ["conditioned-keep", "conditioned-collapse", "conditioned-exclude"]
+    conditioned = [
+        "conditioned-keep",
+        "conditioned-collapse",
+        "conditioned-exclude",
+        "cat-only",
+    ]
     ordered: List[str] = []
     for piece in (raw or "").split(","):
         value = alias.get(piece.strip().lower(), piece.strip().lower())
@@ -518,6 +527,10 @@ def _make_conditioned_label(meaning_id: str, form: str, cond_type: str, strategy
     cond_type = _normalize_text(cond_type)
     if not meaning_id or not form or not cond_type:
         return None
+    if strategy == "cat-only":
+        if cond_type != "cat":
+            return None
+        return f"{meaning_id}__{form}"
     if cond_type == "no_cond":
         return meaning_id
     if cond_type == "prob" and strategy == "exclude":
@@ -600,6 +613,7 @@ def _annotate_tokens(
     df["conditioned_keep_label"] = None
     df["conditioned_collapse_label"] = None
     df["conditioned_exclude_label"] = None
+    df["cat_only_label"] = None
 
     for col in [
         "expected_form_1",
@@ -692,6 +706,12 @@ def _annotate_tokens(
                 df.at[idx, "conditioned_keep_label"] = _make_conditioned_label(meaning_id, form, cond_type, "keep")
                 df.at[idx, "conditioned_collapse_label"] = _make_conditioned_label(meaning_id, form, cond_type, "collapse")
                 df.at[idx, "conditioned_exclude_label"] = _make_conditioned_label(meaning_id, form, cond_type, "exclude")
+                df.at[idx, "cat_only_label"] = _make_conditioned_label(
+                    meaning_id,
+                    form,
+                    cond_type,
+                    "cat-only",
+                )
 
             df.at[idx, "raw_ok"] = bool(meaning_id) and form_valid
             df.at[idx, "form_ok"] = bool(form) and form_valid
@@ -826,8 +846,7 @@ def main() -> None:
                 label_col = LABEL_COLUMN_BY_TYPE[label_type]
                 validity_col = VALIDITY_COLUMN_BY_TYPE[label_type]
                 df_eval = df_sys[df_sys[validity_col]].copy()
-                if label_type.startswith("conditioned-"):
-                    df_eval = df_eval[df_eval[label_col].notna()].copy()
+                df_eval = df_eval[df_eval[label_col].notna()].copy()
 
                 base = sys_row.to_dict()
                 base.update(
