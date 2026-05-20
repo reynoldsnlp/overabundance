@@ -68,7 +68,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--label-types",
         type=str,
-        default="raw,conditioned-exclude",
+        default="raw,conditioned-exclude,conditioned-cat-only",
         help=(
             "Comma-separated label types to score. Supported values: "
             + ", ".join(CANONICAL_LABEL_TYPES)

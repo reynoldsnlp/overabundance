@@ -41,7 +41,7 @@ CANONICAL_LABEL_TYPES = (
     "conditioned-keep",
     "conditioned-collapse",
     "conditioned-exclude",
-    "cat-only",
+    "conditioned-cat-only",
 )
 
 LABEL_COLUMN_BY_TYPE = {
@@ -50,7 +50,7 @@ LABEL_COLUMN_BY_TYPE = {
     "conditioned-keep": "conditioned_keep_label",
     "conditioned-collapse": "conditioned_collapse_label",
     "conditioned-exclude": "conditioned_exclude_label",
-    "cat-only": "cat_only_label",
+    "conditioned-cat-only": "cat_only_label",
 }
 
 VALIDITY_COLUMN_BY_TYPE = {
@@ -59,7 +59,7 @@ VALIDITY_COLUMN_BY_TYPE = {
     "conditioned-keep": "conditioned_ok",
     "conditioned-collapse": "conditioned_ok",
     "conditioned-exclude": "conditioned_ok",
-    "cat-only": "conditioned_ok",
+    "conditioned-cat-only": "conditioned_ok",
 }
 
 
@@ -122,10 +122,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--label-types",
         type=str,
-        default="raw,form,conditioned-exclude",
+        default="raw,form,conditioned-exclude,conditioned-cat-only",
         help=(
             "Comma-separated label types to score. Supported values: "
-            "raw, form, conditioned-keep, conditioned-collapse, conditioned-exclude, cat-only, "
+            "raw, form, conditioned-keep, conditioned-collapse, conditioned-exclude, "
+            "conditioned-cat-only, cat-only, "
             "all_conditioned, all."
         ),
     )
@@ -202,13 +203,15 @@ def _resolve_label_types(raw: str) -> List[str]:
         "joint_keep": "conditioned-keep",
         "joint_collapse": "conditioned-collapse",
         "joint_exclude": "conditioned-exclude",
-        "cat_only": "cat-only",
+        "cat_only": "conditioned-cat-only",
+        "cat-only": "conditioned-cat-only",
+        "conditioned_cat_only": "conditioned-cat-only",
     }
     conditioned = [
         "conditioned-keep",
         "conditioned-collapse",
         "conditioned-exclude",
-        "cat-only",
+        "conditioned-cat-only",
     ]
     ordered: List[str] = []
     for piece in (raw or "").split(","):
@@ -230,7 +233,7 @@ def _resolve_label_types(raw: str) -> List[str]:
         if value not in ordered:
             ordered.append(value)
     if not ordered:
-        ordered = ["raw", "form", "conditioned-exclude"]
+        ordered = ["raw", "form", "conditioned-exclude", "conditioned-cat-only"]
     return ordered
 
 
@@ -527,7 +530,7 @@ def _make_conditioned_label(meaning_id: str, form: str, cond_type: str, strategy
     cond_type = _normalize_text(cond_type)
     if not meaning_id or not form or not cond_type:
         return None
-    if strategy == "cat-only":
+    if strategy in {"cat-only", "conditioned-cat-only"}:
         if cond_type != "cat":
             return None
         return f"{meaning_id}__{form}"
@@ -710,7 +713,7 @@ def _annotate_tokens(
                     meaning_id,
                     form,
                     cond_type,
-                    "cat-only",
+                    "conditioned-cat-only",
                 )
 
             df.at[idx, "raw_ok"] = bool(meaning_id) and form_valid
