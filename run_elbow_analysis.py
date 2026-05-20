@@ -111,22 +111,38 @@ def parse_args() -> argparse.Namespace:
         default="head_embed_cache_answerdotai_ModernBERT-base.jsonl",
         help="Path to the head-embedding cache jsonl.",
     )
-    p.add_argument("--embedding-type", choices=["orig", "delta"], default="orig")
-    p.add_argument("--output-tsv", default="elbow_silhouette_per_system.tsv")
-    p.add_argument("--output-dir", default="docs/elbow_charts")
+    p.add_argument(
+        "--embedding-type",
+        choices=["orig", "delta", "both"],
+        default="both",
+    )
+    p.add_argument(
+        "--output-tsv",
+        default=None,
+        help="Output TSV path. Defaults to elbow_silhouette_per_system_<type>.tsv.",
+    )
+    p.add_argument(
+        "--output-dir",
+        default=None,
+        help="Output directory for grid PNGs. Defaults to docs/elbow_charts/<type>.",
+    )
+    p.add_argument(
+        "--index-root",
+        default="docs/elbow_charts",
+        help="Parent directory containing per-embedding-type subdirs; index.html is regenerated here.",
+    )
     return p.parse_args()
 
 
-def main() -> None:
-    args = parse_args()
-    os.makedirs(args.output_dir, exist_ok=True)
+def _run_one(cache_path: str, embedding_type: str, output_tsv: str, output_dir: str) -> List[int]:
+    os.makedirs(output_dir, exist_ok=True)
 
-    buckets = _collect_systems(args.cache_path, args.embedding_type)
+    buckets = _collect_systems(cache_path, embedding_type)
 
     rows: List[Dict] = []
     grids: Dict[int, List[Dict]] = defaultdict(list)
 
-    for sid, bucket in tqdm(sorted(buckets.items()), desc="systems"):
+    for sid, bucket in tqdm(sorted(buckets.items()), desc=f"systems ({embedding_type})"):
         X = np.stack(bucket["X"])
         n = X.shape[0]
         if n < 3:
@@ -189,14 +205,72 @@ def main() -> None:
         })
 
     df = pd.DataFrame(rows).sort_values(["optimal_k", "system_id"], na_position="last")
-    df.to_csv(args.output_tsv, sep="\t", index=False)
-    print(f"Wrote {args.output_tsv} ({len(df)} systems)")
+    df.to_csv(output_tsv, sep="\t", index=False)
+    print(f"Wrote {output_tsv} ({len(df)} systems)")
 
+    ks_written: List[int] = []
     for k, systems in sorted(grids.items()):
         systems_sorted = sorted(systems, key=lambda s: s["system_id"])
-        out_path = os.path.join(args.output_dir, f"elbow_grid_k{k}.png")
+        out_path = os.path.join(output_dir, f"elbow_grid_k{k}.png")
         _plot_grid(systems_sorted, out_path, k)
         print(f"  k={k}: {len(systems_sorted)} systems -> {out_path}")
+        ks_written.append(k)
+    return ks_written
+
+
+def _write_index(index_root: str, cache_path: str, runs: Dict[str, List[int]]) -> None:
+    os.makedirs(index_root, exist_ok=True)
+    out_path = os.path.join(index_root, "index.html")
+    lines: List[str] = [
+        "<html>",
+        "<head><title>K-means elbow / silhouette analysis</title></head>",
+        "<body>",
+        "<h1>K-means elbow / silhouette analysis</h1>",
+        "<p>One PNG per optimal-k bucket. Each subplot shows silhouette vs k for a",
+        "single lexeme&times;mps system; the red dashed line marks the optimal k",
+        "(argmax silhouette). Source: <code>run_elbow_analysis.py</code> on",
+        f"<code>{os.path.basename(cache_path)}</code>",
+        f"(k&nbsp;&isin;&nbsp;[{K_MIN},{K_MAX}]).</p>",
+    ]
+    for emb_type in ("orig", "delta"):
+        if emb_type not in runs:
+            continue
+        ks = runs[emb_type]
+        lines.append(f"<h2>Embedding type: <code>{emb_type}</code></h2>")
+        if not ks:
+            lines.append("<p><em>(no systems)</em></p>")
+            continue
+        lines.append("<ul>")
+        for k in ks:
+            lines.append(
+                f'<li><a href="{emb_type}/elbow_grid_k{k}.png">{emb_type}/elbow_grid_k{k}.png</a> '
+                f"&mdash; systems whose optimal k = {k}</li>"
+            )
+        lines.append("</ul>")
+    lines += ["</body>", "</html>", ""]
+    with open(out_path, "w") as f:
+        f.write("\n".join(lines))
+    print(f"Wrote {out_path}")
+
+
+def main() -> None:
+    args = parse_args()
+    types = ["orig", "delta"] if args.embedding_type == "both" else [args.embedding_type]
+
+    runs: Dict[str, List[int]] = {}
+    for emb_type in types:
+        if args.output_dir and args.embedding_type != "both":
+            output_dir = args.output_dir
+        else:
+            output_dir = os.path.join(args.index_root, emb_type)
+        if args.output_tsv and args.embedding_type != "both":
+            output_tsv = args.output_tsv
+        else:
+            output_tsv = f"elbow_silhouette_per_system_{emb_type}.tsv"
+        ks = _run_one(args.cache_path, emb_type, output_tsv, output_dir)
+        runs[emb_type] = ks
+
+    _write_index(args.index_root, args.cache_path, runs)
 
 
 if __name__ == "__main__":
