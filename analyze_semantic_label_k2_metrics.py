@@ -43,6 +43,8 @@ CORE_METRICS = [
     "all_var",
 ]
 
+PER_CATEGORY_METRICS = ["k2_sil", "form_sil"]
+
 VIOLIN_METRICS = [
     "k2_sil",
     "form_sil",
@@ -297,6 +299,206 @@ def _write_insights_report(df: pd.DataFrame, corr_df: pd.DataFrame, output_path:
         handle.write("\n".join(lines).rstrip() + "\n")
 
 
+def _holm_correction(p_values: List[float]) -> List[float]:
+    """Holm-Bonferroni step-down correction. Returns adjusted p-values in input order."""
+    m = len(p_values)
+    if m == 0:
+        return []
+    indexed = sorted(enumerate(p_values), key=lambda t: t[1])
+    adjusted = [0.0] * m
+    running_max = 0.0
+    for rank, (orig_idx, p) in enumerate(indexed):
+        factor = m - rank
+        val = min(1.0, p * factor)
+        running_max = max(running_max, val)
+        adjusted[orig_idx] = running_max
+    return adjusted
+
+
+def _per_category_stats(values: np.ndarray) -> Dict[str, float]:
+    finite = values[np.isfinite(values)]
+    n = int(finite.size)
+    if n == 0:
+        return {"n": 0, "mean": float("nan"), "std": float("nan"), "median": float("nan"),
+                "q25": float("nan"), "q75": float("nan"), "min": float("nan"), "max": float("nan")}
+    return {
+        "n": n,
+        "mean": float(np.mean(finite)),
+        "std": float(np.std(finite, ddof=1)) if n > 1 else float("nan"),
+        "median": float(np.median(finite)),
+        "q25": float(np.percentile(finite, 25)),
+        "q75": float(np.percentile(finite, 75)),
+        "min": float(np.min(finite)),
+        "max": float(np.max(finite)),
+    }
+
+
+def _build_per_category_block(sub: pd.DataFrame, metric: str) -> Tuple[List[Dict[str, object]], Dict[str, object], List[Dict[str, object]]]:
+    """Returns (stats_rows, kruskal_result, pairwise_rows) for one (embed_type, metric) slice."""
+    stats_rows: List[Dict[str, object]] = []
+    samples: Dict[str, np.ndarray] = {}
+    for cat in COND_TYPE_ORDER:
+        vals = pd.to_numeric(sub.loc[sub["cond_type"] == cat, metric], errors="coerce").to_numpy(dtype=float)
+        vals = vals[np.isfinite(vals)]
+        samples[cat] = vals
+        row = {"cond_type": cat}
+        row.update(_per_category_stats(vals))
+        stats_rows.append(row)
+
+    non_empty = [(cat, vals) for cat, vals in samples.items() if vals.size >= 2]
+    kruskal_result: Dict[str, object]
+    if len(non_empty) >= 2:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            kw = stats.kruskal(*[v for _, v in non_empty])
+        kruskal_result = {
+            "H": float(kw.statistic),
+            "p": float(kw.pvalue),
+            "df": len(non_empty) - 1,
+            "groups": ", ".join(cat for cat, _ in non_empty),
+        }
+    else:
+        kruskal_result = {"H": float("nan"), "p": float("nan"), "df": 0, "groups": ""}
+
+    pairs = [("no_cond", "prob"), ("no_cond", "cat"), ("prob", "cat")]
+    raw_p: List[Tuple[Tuple[str, str], Dict[str, float]]] = []
+    for a, b in pairs:
+        xa, xb = samples.get(a, np.array([])), samples.get(b, np.array([]))
+        if xa.size >= 2 and xb.size >= 2:
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                mw = stats.mannwhitneyu(xa, xb, alternative="two-sided")
+            raw_p.append(((a, b), {"U": float(mw.statistic), "p": float(mw.pvalue),
+                                    "n_a": int(xa.size), "n_b": int(xb.size)}))
+        else:
+            raw_p.append(((a, b), {"U": float("nan"), "p": float("nan"),
+                                    "n_a": int(xa.size), "n_b": int(xb.size)}))
+
+    valid_idx = [i for i, (_, info) in enumerate(raw_p) if np.isfinite(info["p"])]
+    p_list = [raw_p[i][1]["p"] for i in valid_idx]
+    adj = _holm_correction(p_list)
+    pairwise_rows: List[Dict[str, object]] = []
+    for j, (pair, info) in enumerate(raw_p):
+        adj_p = float("nan")
+        if j in valid_idx:
+            adj_p = adj[valid_idx.index(j)]
+        pairwise_rows.append({
+            "pair": f"{pair[0]} vs {pair[1]}",
+            "U": info["U"],
+            "p_raw": info["p"],
+            "p_holm": adj_p,
+            "n_a": info["n_a"],
+            "n_b": info["n_b"],
+        })
+    return stats_rows, kruskal_result, pairwise_rows
+
+
+def _fmt(x: float, places: int = 4) -> str:
+    if isinstance(x, (int, np.integer)):
+        return str(int(x))
+    if x is None or (isinstance(x, float) and not np.isfinite(x)):
+        return "—"
+    return f"{x:.{places}f}"
+
+
+def _html_stats_table(stats_rows: List[Dict[str, object]]) -> str:
+    headers = ["cond_type", "n", "mean", "std", "median", "Q25", "Q75", "min", "max"]
+    keys = ["cond_type", "n", "mean", "std", "median", "q25", "q75", "min", "max"]
+    lines = ['<table border="1" cellpadding="4" cellspacing="0" style="border-collapse:collapse;font-family:monospace;font-size:0.9em">']
+    lines.append("<thead><tr>" + "".join(f"<th>{h}</th>" for h in headers) + "</tr></thead>")
+    lines.append("<tbody>")
+    for row in stats_rows:
+        cells = []
+        for k in keys:
+            v = row[k]
+            if k == "cond_type":
+                cells.append(f"<td>{v}</td>")
+            elif k == "n":
+                cells.append(f"<td style='text-align:right'>{int(v)}</td>")
+            else:
+                cells.append(f"<td style='text-align:right'>{_fmt(v)}</td>")
+        lines.append("<tr>" + "".join(cells) + "</tr>")
+    lines.append("</tbody></table>")
+    return "\n".join(lines)
+
+
+def _html_pairwise_table(pairwise_rows: List[Dict[str, object]]) -> str:
+    headers = ["pair", "n_a", "n_b", "U", "p (raw)", "p (Holm)"]
+    lines = ['<table border="1" cellpadding="4" cellspacing="0" style="border-collapse:collapse;font-family:monospace;font-size:0.9em">']
+    lines.append("<thead><tr>" + "".join(f"<th>{h}</th>" for h in headers) + "</tr></thead>")
+    lines.append("<tbody>")
+    for row in pairwise_rows:
+        sig_marker = ""
+        p_holm = row["p_holm"]
+        if isinstance(p_holm, float) and np.isfinite(p_holm):
+            if p_holm < 0.001:
+                sig_marker = " ***"
+            elif p_holm < 0.01:
+                sig_marker = " **"
+            elif p_holm < 0.05:
+                sig_marker = " *"
+        lines.append(
+            "<tr>"
+            f"<td>{row['pair']}</td>"
+            f"<td style='text-align:right'>{int(row['n_a'])}</td>"
+            f"<td style='text-align:right'>{int(row['n_b'])}</td>"
+            f"<td style='text-align:right'>{_fmt(row['U'], places=2)}</td>"
+            f"<td style='text-align:right'>{_fmt(row['p_raw'])}</td>"
+            f"<td style='text-align:right'>{_fmt(p_holm)}{sig_marker}</td>"
+            "</tr>"
+        )
+    lines.append("</tbody></table>")
+    return "\n".join(lines)
+
+
+def _write_per_category_summary_html(df: pd.DataFrame, output_path: str) -> None:
+    """Emit an HTML summary of per-cond_type silhouette statistics + tests."""
+    timestamp = datetime.now().isoformat(timespec="seconds")
+    lines: List[str] = [
+        "<html>",
+        "<head><title>Per-category silhouette summary</title></head>",
+        "<body style='font-family:sans-serif;max-width:1100px;margin:1em auto'>",
+        "<h1>Per-category silhouette summary</h1>",
+        f"<p>Generated: {timestamp}.</p>",
+        "<p>Each row in <code>clustering_semantic_label_k2_multi.tsv</code> is one ",
+        "(<i>model</i>, <i>embed_type</i>, <i>lemma</i>, <i>msps</i>, <i>semantic_label</i>) ",
+        "system. The tables below pool across <i>model</i> and <i>lemma</i>/<i>msps</i>, ",
+        "splitting by <i>embed_type</i> and <i>cond_type</i>.</p>",
+        "<p>Significance test: Kruskal-Wallis H across the three cond_type groups, ",
+        "followed by pairwise Mann-Whitney U with Holm-Bonferroni correction. ",
+        "Marker: * p&lt;0.05, ** p&lt;0.01, *** p&lt;0.001.</p>",
+    ]
+
+    sections: List[Tuple[str, pd.DataFrame]] = []
+    sections.append(("All models pooled", df))
+    for model_name in sorted(df["model"].unique()):
+        sections.append((f"Model: {model_name}", df[df["model"] == model_name]))
+
+    for section_title, section_df in sections:
+        lines.append(f"<h2>{section_title}</h2>")
+        for embed_type in sorted(section_df["embed_type"].unique()):
+            sub = section_df[section_df["embed_type"] == embed_type]
+            lines.append(f"<h3>embed_type = <code>{embed_type}</code></h3>")
+            for metric in PER_CATEGORY_METRICS:
+                stats_rows, kw, pairwise_rows = _build_per_category_block(sub, metric)
+                pretty = PRETTY_LABELS.get(metric, metric)
+                lines.append(f"<h4>{pretty} (<code>{metric}</code>)</h4>")
+                lines.append(_html_stats_table(stats_rows))
+                if np.isfinite(kw["p"]):
+                    lines.append(
+                        f"<p>Kruskal-Wallis across [{kw['groups']}]: "
+                        f"H = {_fmt(kw['H'], 3)}, df = {kw['df']}, "
+                        f"<b>p = {_fmt(kw['p'])}</b></p>"
+                    )
+                else:
+                    lines.append("<p>Kruskal-Wallis: insufficient data.</p>")
+                lines.append(_html_pairwise_table(pairwise_rows))
+
+    lines += ["</body>", "</html>", ""]
+    with open(output_path, "w", encoding="utf-8") as f:
+        f.write("\n".join(lines))
+
+
 def _write_correlation_heatmap(corr_df: pd.DataFrame, *, method: str, output_path: str) -> None:
     overall = corr_df[corr_df["group_type"] == "overall"].copy()
     value_col = "spearman_rho" if method == "spearman" else "pearson_r"
@@ -411,6 +613,11 @@ def main() -> None:
     print("Writing insights report...")
     report_path = os.path.join(args.output_dir, "insights.md")
     _write_insights_report(df, corr_df, report_path)
+
+    print("Writing per-category summary HTML...")
+    per_cat_path = os.path.join(args.output_dir, "per_category_summary.html")
+    _write_per_category_summary_html(df, per_cat_path)
+    print(f"Saved {per_cat_path}")
 
     print("Writing heatmaps...")
     _write_correlation_heatmap(corr_df, method="spearman", output_path=os.path.join(args.output_dir, "heatmap_spearman.html"))

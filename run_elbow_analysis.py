@@ -15,6 +15,11 @@ For each (lexeme, mps) system in the chosen embedding cache, sweeps k in
 [K_MIN, K_MAX], fits KMeans, scores with silhouette, and records the optimal
 k (argmax silhouette). Writes a TSV of results and one PNG grid of elbow
 charts per optimal-k bucket.
+
+Runs the full matrix of (embedding_type x cond_bucket) by default, where
+cond_bucket is one of {all, no_cond, prob, cat}. When a category bucket is
+selected, only tokens whose corresponding meaning is labelled with that
+cond_type (per conditioning_by_meaning.csv) are kept.
 """
 
 from __future__ import annotations
@@ -22,8 +27,9 @@ from __future__ import annotations
 import argparse
 import math
 import os
+import re
 from collections import defaultdict
-from typing import Dict, List
+from typing import Any, Dict, List, Optional, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -38,19 +44,66 @@ import overabundance_common as common
 K_MIN = 2
 K_MAX = 10
 
+COND_BUCKETS = ["all", "no_cond", "prob", "cat"]
+
 
 def _system_id(lemma: str, msps: str) -> str:
     return f"{lemma}__{msps}"
 
 
-def _collect_systems(cache_path: str, embedding_type: str) -> Dict[str, Dict]:
+def _normalize_text(text: Any) -> str:
+    if text is None:
+        return ""
+    s = str(text).strip()
+    s = " ".join(s.split())
+    s = s.replace("“", '"').replace("”", '"').replace("’", "'").replace("‘", "'")
+    return s
+
+
+def _meaning_match_key(text: Any) -> str:
+    s = _normalize_text(text)
+    if not s:
+        return s
+    s = re.sub(r"\.\s*\(I used[^)]*\)\s*$", "", s, flags=re.IGNORECASE)
+    s = re.sub(r"\.\s*I used.*$", "", s, flags=re.IGNORECASE)
+    return s.strip()
+
+
+def _load_cond_lookup(path: str) -> Dict[Tuple[str, str, str], str]:
+    if not os.path.exists(path):
+        print(f"[warn] conditioning file not found: {path} — per-category buckets will be empty.")
+        return {}
+    df = pd.read_csv(path, encoding="latin-1")
+    lookup: Dict[Tuple[str, str, str], str] = {}
+    for _, row in df.iterrows():
+        key = (
+            _normalize_text(row.get("lemma")),
+            _normalize_text(row.get("msps")),
+            _meaning_match_key(row.get("def")),
+        )
+        lookup[key] = _normalize_text(row.get("cond_type"))
+    return lookup
+
+
+def _collect_systems(
+    cache_path: str,
+    embedding_type: str,
+    cond_lookup: Dict[Tuple[str, str, str], str],
+    cond_filter: Optional[str],
+) -> Dict[str, Dict]:
     cache = common.load_cache(cache_path)
     buckets: Dict[str, Dict] = defaultdict(lambda: {"lemma": "", "msps": "", "X": []})
     for rec in cache.values():
-        lemma = str(rec.get("lexeme") or "").strip()
-        msps = str(rec.get("mps") or "").strip()
+        lemma = _normalize_text(rec.get("lexeme"))
+        msps = _normalize_text(rec.get("mps"))
         if not lemma or not msps:
             continue
+
+        if cond_filter is not None:
+            key = (lemma, msps, _meaning_match_key(rec.get("meaning")))
+            if cond_lookup.get(key) != cond_filter:
+                continue
+
         vec = common.select_record_embedding(rec, embedding_source=embedding_type)
         if vec is None:
             continue
@@ -75,7 +128,7 @@ def _analyze_system(X: np.ndarray) -> Dict[int, Dict[str, float]]:
     return results
 
 
-def _plot_grid(systems: List[Dict], out_path: str, optimal_k: int) -> None:
+def _plot_grid(systems: List[Dict], out_path: str, optimal_k: int, subtitle: str = "") -> None:
     n = len(systems)
     side = max(2, math.ceil(math.sqrt(n)))
     fig, axes = plt.subplots(side, side, figsize=(3.2 * side, 2.6 * side), squeeze=False)
@@ -98,7 +151,10 @@ def _plot_grid(systems: List[Dict], out_path: str, optimal_k: int) -> None:
     for j in range(n, side * side):
         axes[j // side][j % side].axis("off")
 
-    fig.suptitle(f"Silhouette elbow — optimal k = {optimal_k} (n_systems = {n})", fontsize=11)
+    suptitle = f"Silhouette elbow — optimal k = {optimal_k} (n_systems = {n})"
+    if subtitle:
+        suptitle += f" — {subtitle}"
+    fig.suptitle(suptitle, fontsize=11)
     fig.tight_layout(rect=(0, 0, 1, 0.97))
     fig.savefig(out_path, dpi=120)
     plt.close(fig)
@@ -117,39 +173,50 @@ def parse_args() -> argparse.Namespace:
         default="both",
     )
     p.add_argument(
-        "--output-tsv",
-        default=None,
-        help="Output TSV path. Defaults to elbow_silhouette_per_system_<type>.tsv.",
+        "--cond-bucket",
+        choices=COND_BUCKETS + ["matrix"],
+        default="matrix",
+        help="Which cond_type bucket to run. 'matrix' runs all four (all + per-category).",
     )
     p.add_argument(
-        "--output-dir",
-        default=None,
-        help="Output directory for grid PNGs. Defaults to docs/elbow_charts/<type>.",
+        "--conditioning-by-meaning-path",
+        default="conditioning_by_meaning.csv",
+        help="CSV mapping (lemma, msps, def) -> cond_type.",
     )
     p.add_argument(
         "--index-root",
         default="docs/elbow_charts",
-        help="Parent directory containing per-embedding-type subdirs; index.html is regenerated here.",
+        help="Parent directory; index.html is regenerated here.",
     )
     return p.parse_args()
 
 
-def _run_one(cache_path: str, embedding_type: str, output_tsv: str, output_dir: str) -> List[int]:
+def _run_one(
+    cache_path: str,
+    embedding_type: str,
+    cond_lookup: Dict[Tuple[str, str, str], str],
+    cond_bucket: str,
+    output_tsv: str,
+    output_dir: str,
+) -> List[int]:
     os.makedirs(output_dir, exist_ok=True)
+    cond_filter = None if cond_bucket == "all" else cond_bucket
 
-    buckets = _collect_systems(cache_path, embedding_type)
+    buckets = _collect_systems(cache_path, embedding_type, cond_lookup, cond_filter)
 
     rows: List[Dict] = []
     grids: Dict[int, List[Dict]] = defaultdict(list)
 
-    for sid, bucket in tqdm(sorted(buckets.items()), desc=f"systems ({embedding_type})"):
-        X = np.stack(bucket["X"])
+    desc = f"systems ({embedding_type}/{cond_bucket})"
+    for sid, bucket in tqdm(sorted(buckets.items()), desc=desc):
+        X = np.stack(bucket["X"]) if bucket["X"] else np.zeros((0, 0))
         n = X.shape[0]
         if n < 3:
             rows.append({
                 "system_id": sid,
                 "lemma": bucket["lemma"],
                 "msps": bucket["msps"],
+                "cond_bucket": cond_bucket,
                 "n_tokens": n,
                 "optimal_k": "",
                 "best_silhouette": "",
@@ -166,6 +233,7 @@ def _run_one(cache_path: str, embedding_type: str, output_tsv: str, output_dir: 
                 "system_id": sid,
                 "lemma": bucket["lemma"],
                 "msps": bucket["msps"],
+                "cond_bucket": cond_bucket,
                 "n_tokens": n,
                 "optimal_k": "",
                 "best_silhouette": "",
@@ -187,6 +255,7 @@ def _run_one(cache_path: str, embedding_type: str, output_tsv: str, output_dir: 
             "system_id": sid,
             "lemma": bucket["lemma"],
             "msps": bucket["msps"],
+            "cond_bucket": cond_bucket,
             "n_tokens": n,
             "optimal_k": best_k,
             "best_silhouette": best_sil,
@@ -208,17 +277,36 @@ def _run_one(cache_path: str, embedding_type: str, output_tsv: str, output_dir: 
     df.to_csv(output_tsv, sep="\t", index=False)
     print(f"Wrote {output_tsv} ({len(df)} systems)")
 
+    subtitle = f"{embedding_type} / cond_type={cond_bucket}"
     ks_written: List[int] = []
     for k, systems in sorted(grids.items()):
         systems_sorted = sorted(systems, key=lambda s: s["system_id"])
         out_path = os.path.join(output_dir, f"elbow_grid_k{k}.png")
-        _plot_grid(systems_sorted, out_path, k)
+        _plot_grid(systems_sorted, out_path, k, subtitle=subtitle)
         print(f"  k={k}: {len(systems_sorted)} systems -> {out_path}")
         ks_written.append(k)
     return ks_written
 
 
-def _write_index(index_root: str, cache_path: str, runs: Dict[str, List[int]]) -> None:
+def _cleanup_stale_pngs(index_root: str, emb_types: List[str]) -> None:
+    """Remove old top-level PNGs at docs/elbow_charts/<emb>/elbow_grid_k*.png
+    that predate the cond_bucket subdir layout."""
+    for emb in emb_types:
+        emb_dir = os.path.join(index_root, emb)
+        if not os.path.isdir(emb_dir):
+            continue
+        for name in os.listdir(emb_dir):
+            full = os.path.join(emb_dir, name)
+            if os.path.isfile(full) and name.startswith("elbow_grid_k") and name.endswith(".png"):
+                os.remove(full)
+                print(f"  removed stale {full}")
+
+
+def _write_index(
+    index_root: str,
+    cache_path: str,
+    runs: Dict[str, Dict[str, List[int]]],
+) -> None:
     os.makedirs(index_root, exist_ok=True)
     out_path = os.path.join(index_root, "index.html")
     lines: List[str] = [
@@ -231,22 +319,30 @@ def _write_index(index_root: str, cache_path: str, runs: Dict[str, List[int]]) -
         "(argmax silhouette). Source: <code>run_elbow_analysis.py</code> on",
         f"<code>{os.path.basename(cache_path)}</code>",
         f"(k&nbsp;&isin;&nbsp;[{K_MIN},{K_MAX}]).</p>",
+        "<p>The <code>all</code> bucket uses every token; the <code>no_cond</code>,",
+        "<code>prob</code>, and <code>cat</code> buckets restrict to tokens whose",
+        "meaning is labelled with that <code>cond_type</code> in",
+        "<code>conditioning_by_meaning.csv</code>.</p>",
     ]
     for emb_type in ("orig", "delta"):
         if emb_type not in runs:
             continue
-        ks = runs[emb_type]
         lines.append(f"<h2>Embedding type: <code>{emb_type}</code></h2>")
-        if not ks:
-            lines.append("<p><em>(no systems)</em></p>")
-            continue
-        lines.append("<ul>")
-        for k in ks:
-            lines.append(
-                f'<li><a href="{emb_type}/elbow_grid_k{k}.png">{emb_type}/elbow_grid_k{k}.png</a> '
-                f"&mdash; systems whose optimal k = {k}</li>"
-            )
-        lines.append("</ul>")
+        for bucket in COND_BUCKETS:
+            ks = runs[emb_type].get(bucket)
+            if ks is None:
+                continue
+            lines.append(f"<h3>cond_type = <code>{bucket}</code></h3>")
+            if not ks:
+                lines.append("<p><em>(no systems)</em></p>")
+                continue
+            lines.append("<ul>")
+            for k in ks:
+                rel = f"{emb_type}/{bucket}/elbow_grid_k{k}.png"
+                lines.append(
+                    f'<li><a href="{rel}">{rel}</a> &mdash; systems whose optimal k = {k}</li>'
+                )
+            lines.append("</ul>")
     lines += ["</body>", "</html>", ""]
     with open(out_path, "w") as f:
         f.write("\n".join(lines))
@@ -255,20 +351,22 @@ def _write_index(index_root: str, cache_path: str, runs: Dict[str, List[int]]) -
 
 def main() -> None:
     args = parse_args()
-    types = ["orig", "delta"] if args.embedding_type == "both" else [args.embedding_type]
+    emb_types = ["orig", "delta"] if args.embedding_type == "both" else [args.embedding_type]
+    cond_buckets = COND_BUCKETS if args.cond_bucket == "matrix" else [args.cond_bucket]
 
-    runs: Dict[str, List[int]] = {}
-    for emb_type in types:
-        if args.output_dir and args.embedding_type != "both":
-            output_dir = args.output_dir
-        else:
-            output_dir = os.path.join(args.index_root, emb_type)
-        if args.output_tsv and args.embedding_type != "both":
-            output_tsv = args.output_tsv
-        else:
-            output_tsv = f"elbow_silhouette_per_system_{emb_type}.tsv"
-        ks = _run_one(args.cache_path, emb_type, output_tsv, output_dir)
-        runs[emb_type] = ks
+    cond_lookup = _load_cond_lookup(args.conditioning_by_meaning_path)
+
+    _cleanup_stale_pngs(args.index_root, emb_types)
+
+    runs: Dict[str, Dict[str, List[int]]] = {emb: {} for emb in emb_types}
+    for emb_type in emb_types:
+        for bucket in cond_buckets:
+            output_dir = os.path.join(args.index_root, emb_type, bucket)
+            output_tsv = f"elbow_silhouette_per_system_{emb_type}_{bucket}.tsv"
+            ks = _run_one(
+                args.cache_path, emb_type, cond_lookup, bucket, output_tsv, output_dir,
+            )
+            runs[emb_type][bucket] = ks
 
     _write_index(args.index_root, args.cache_path, runs)
 

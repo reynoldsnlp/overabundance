@@ -1,6 +1,6 @@
 # Semantic Label k=2 Analysis
 
-Generated: 2026-04-15T16:35:44
+Generated: 2026-05-27T21:45:24
 Rows analyzed: 1942
 Models: answerdotai_ModernBERT-base, bert_base_uncased, kanishka_GlossBERT, transfo-xl-wt103
 

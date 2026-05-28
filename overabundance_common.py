@@ -191,6 +191,9 @@ def hf_get_embedding(tokenizer, model, sentence: str, word: str):
         return None
     word_start, word_tokens = located
 
+    device = next(model.parameters()).device
+    tokens = {k: v.to(device) for k, v in tokens.items()}
+
     with torch.no_grad():
         outputs = model(**tokens)
         hidden = getattr(outputs, "last_hidden_state", None)
@@ -199,7 +202,7 @@ def hf_get_embedding(tokenizer, model, sentence: str, word: str):
         hidden_states = hidden[0]
 
     word_embeds = hidden_states[word_start : word_start + len(word_tokens)].mean(dim=0)
-    return word_embeds.cpu().numpy()
+    return word_embeds.float().cpu().numpy()
 
 
 def hf_get_embedding_with_heads(tokenizer, model, sentence: str, word: str):
@@ -220,6 +223,9 @@ def hf_get_embedding_with_heads(tokenizer, model, sentence: str, word: str):
         return None
     word_start, word_tokens = located
 
+    device = next(model.parameters()).device
+    tokens = {k: v.to(device) for k, v in tokens.items()}
+
     with torch.no_grad():
         outputs = model(**tokens)
         hidden = getattr(outputs, "last_hidden_state", None)
@@ -228,7 +234,7 @@ def hf_get_embedding_with_heads(tokenizer, model, sentence: str, word: str):
         hidden_states = hidden[0]
 
     word_embeds = hidden_states[word_start : word_start + len(word_tokens)].mean(dim=0)
-    embedding = word_embeds.cpu().numpy()
+    embedding = word_embeds.float().cpu().numpy()
 
     n_heads = getattr(getattr(model, "config", None), "num_attention_heads", None)
     if not isinstance(n_heads, int) or n_heads <= 0:
@@ -240,7 +246,7 @@ def hf_get_embedding_with_heads(tokenizer, model, sentence: str, word: str):
 
     head_dim = hidden_dim // n_heads
     heads = word_embeds.reshape(n_heads, head_dim)
-    return embedding, [heads[i].cpu().numpy() for i in range(n_heads)]
+    return embedding, [heads[i].float().cpu().numpy() for i in range(n_heads)]
 
 
 def hf_get_embedding_heads(tokenizer, model, sentence: str, word: str) -> Optional[List[object]]:

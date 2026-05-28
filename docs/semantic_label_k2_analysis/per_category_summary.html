@@ -1,0 +1,349 @@
+<html>
+<head><title>Per-category silhouette summary</title></head>
+<body style='font-family:sans-serif;max-width:1100px;margin:1em auto'>
+<h1>Per-category silhouette summary</h1>
+<p>Generated: 2026-05-27T21:45:24.</p>
+<p>Each row in <code>clustering_semantic_label_k2_multi.tsv</code> is one 
+(<i>model</i>, <i>embed_type</i>, <i>lemma</i>, <i>msps</i>, <i>semantic_label</i>) 
+system. The tables below pool across <i>model</i> and <i>lemma</i>/<i>msps</i>, 
+splitting by <i>embed_type</i> and <i>cond_type</i>.</p>
+<p>Significance test: Kruskal-Wallis H across the three cond_type groups, 
+followed by pairwise Mann-Whitney U with Holm-Bonferroni correction. 
+Marker: * p&lt;0.05, ** p&lt;0.01, *** p&lt;0.001.</p>
+<h2>All models pooled</h2>
+<h3>embed_type = <code>delta</code></h3>
+<h4>k=2 silhouette (<code>k2_sil</code>)</h4>
+<table border="1" cellpadding="4" cellspacing="0" style="border-collapse:collapse;font-family:monospace;font-size:0.9em">
+<thead><tr><th>cond_type</th><th>n</th><th>mean</th><th>std</th><th>median</th><th>Q25</th><th>Q75</th><th>min</th><th>max</th></tr></thead>
+<tbody>
+<tr><td>no_cond</td><td style='text-align:right'>453</td><td style='text-align:right'>0.4361</td><td style='text-align:right'>0.1191</td><td style='text-align:right'>0.4449</td><td style='text-align:right'>0.3691</td><td style='text-align:right'>0.5210</td><td style='text-align:right'>-0.0009</td><td style='text-align:right'>0.7743</td></tr>
+<tr><td>prob</td><td style='text-align:right'>269</td><td style='text-align:right'>0.4180</td><td style='text-align:right'>0.1578</td><td style='text-align:right'>0.4485</td><td style='text-align:right'>0.3511</td><td style='text-align:right'>0.5352</td><td style='text-align:right'>-0.1308</td><td style='text-align:right'>0.7808</td></tr>
+<tr><td>cat</td><td style='text-align:right'>249</td><td style='text-align:right'>0.2469</td><td style='text-align:right'>0.1973</td><td style='text-align:right'>0.1739</td><td style='text-align:right'>0.0913</td><td style='text-align:right'>0.4420</td><td style='text-align:right'>-0.0567</td><td style='text-align:right'>0.6240</td></tr>
+</tbody></table>
+<p>Kruskal-Wallis across [no_cond, prob, cat]: H = 140.543, df = 2, <b>p = 0.0000</b></p>
+<table border="1" cellpadding="4" cellspacing="0" style="border-collapse:collapse;font-family:monospace;font-size:0.9em">
+<thead><tr><th>pair</th><th>n_a</th><th>n_b</th><th>U</th><th>p (raw)</th><th>p (Holm)</th></tr></thead>
+<tbody>
+<tr><td>no_cond vs prob</td><td style='text-align:right'>453</td><td style='text-align:right'>269</td><td style='text-align:right'>62059.00</td><td style='text-align:right'>0.6767</td><td style='text-align:right'>0.6767</td></tr>
+<tr><td>no_cond vs cat</td><td style='text-align:right'>453</td><td style='text-align:right'>249</td><td style='text-align:right'>85964.00</td><td style='text-align:right'>0.0000</td><td style='text-align:right'>0.0000 ***</td></tr>
+<tr><td>prob vs cat</td><td style='text-align:right'>269</td><td style='text-align:right'>249</td><td style='text-align:right'>49097.00</td><td style='text-align:right'>0.0000</td><td style='text-align:right'>0.0000 ***</td></tr>
+</tbody></table>
+<h4>Form silhouette (<code>form_sil</code>)</h4>
+<table border="1" cellpadding="4" cellspacing="0" style="border-collapse:collapse;font-family:monospace;font-size:0.9em">
+<thead><tr><th>cond_type</th><th>n</th><th>mean</th><th>std</th><th>median</th><th>Q25</th><th>Q75</th><th>min</th><th>max</th></tr></thead>
+<tbody>
+<tr><td>no_cond</td><td style='text-align:right'>453</td><td style='text-align:right'>0.4262</td><td style='text-align:right'>0.1184</td><td style='text-align:right'>0.4383</td><td style='text-align:right'>0.3512</td><td style='text-align:right'>0.5138</td><td style='text-align:right'>0.0862</td><td style='text-align:right'>0.6710</td></tr>
+<tr><td>prob</td><td style='text-align:right'>269</td><td style='text-align:right'>0.4316</td><td style='text-align:right'>0.1241</td><td style='text-align:right'>0.4486</td><td style='text-align:right'>0.3675</td><td style='text-align:right'>0.5251</td><td style='text-align:right'>-0.0929</td><td style='text-align:right'>0.7006</td></tr>
+<tr><td>cat</td><td style='text-align:right'>165</td><td style='text-align:right'>0.4442</td><td style='text-align:right'>0.1107</td><td style='text-align:right'>0.4514</td><td style='text-align:right'>0.3855</td><td style='text-align:right'>0.5154</td><td style='text-align:right'>0.0048</td><td style='text-align:right'>0.6338</td></tr>
+</tbody></table>
+<p>Kruskal-Wallis across [no_cond, prob, cat]: H = 2.839, df = 2, <b>p = 0.2419</b></p>
+<table border="1" cellpadding="4" cellspacing="0" style="border-collapse:collapse;font-family:monospace;font-size:0.9em">
+<thead><tr><th>pair</th><th>n_a</th><th>n_b</th><th>U</th><th>p (raw)</th><th>p (Holm)</th></tr></thead>
+<tbody>
+<tr><td>no_cond vs prob</td><td style='text-align:right'>453</td><td style='text-align:right'>269</td><td style='text-align:right'>58701.00</td><td style='text-align:right'>0.4111</td><td style='text-align:right'>0.8223</td></tr>
+<tr><td>no_cond vs cat</td><td style='text-align:right'>453</td><td style='text-align:right'>165</td><td style='text-align:right'>34070.00</td><td style='text-align:right'>0.0926</td><td style='text-align:right'>0.2779</td></tr>
+<tr><td>prob vs cat</td><td style='text-align:right'>269</td><td style='text-align:right'>165</td><td style='text-align:right'>21169.00</td><td style='text-align:right'>0.4200</td><td style='text-align:right'>0.8223</td></tr>
+</tbody></table>
+<h3>embed_type = <code>orig</code></h3>
+<h4>k=2 silhouette (<code>k2_sil</code>)</h4>
+<table border="1" cellpadding="4" cellspacing="0" style="border-collapse:collapse;font-family:monospace;font-size:0.9em">
+<thead><tr><th>cond_type</th><th>n</th><th>mean</th><th>std</th><th>median</th><th>Q25</th><th>Q75</th><th>min</th><th>max</th></tr></thead>
+<tbody>
+<tr><td>no_cond</td><td style='text-align:right'>453</td><td style='text-align:right'>0.1385</td><td style='text-align:right'>0.0742</td><td style='text-align:right'>0.1249</td><td style='text-align:right'>0.0849</td><td style='text-align:right'>0.1855</td><td style='text-align:right'>0.0051</td><td style='text-align:right'>0.4217</td></tr>
+<tr><td>prob</td><td style='text-align:right'>269</td><td style='text-align:right'>0.1395</td><td style='text-align:right'>0.0746</td><td style='text-align:right'>0.1236</td><td style='text-align:right'>0.0834</td><td style='text-align:right'>0.1808</td><td style='text-align:right'>-0.0040</td><td style='text-align:right'>0.3802</td></tr>
+<tr><td>cat</td><td style='text-align:right'>249</td><td style='text-align:right'>0.1228</td><td style='text-align:right'>0.0756</td><td style='text-align:right'>0.1111</td><td style='text-align:right'>0.0727</td><td style='text-align:right'>0.1593</td><td style='text-align:right'>-0.0091</td><td style='text-align:right'>0.5288</td></tr>
+</tbody></table>
+<p>Kruskal-Wallis across [no_cond, prob, cat]: H = 10.706, df = 2, <b>p = 0.0047</b></p>
+<table border="1" cellpadding="4" cellspacing="0" style="border-collapse:collapse;font-family:monospace;font-size:0.9em">
+<thead><tr><th>pair</th><th>n_a</th><th>n_b</th><th>U</th><th>p (raw)</th><th>p (Holm)</th></tr></thead>
+<tbody>
+<tr><td>no_cond vs prob</td><td style='text-align:right'>453</td><td style='text-align:right'>269</td><td style='text-align:right'>60569.00</td><td style='text-align:right'>0.8946</td><td style='text-align:right'>0.8946</td></tr>
+<tr><td>no_cond vs cat</td><td style='text-align:right'>453</td><td style='text-align:right'>249</td><td style='text-align:right'>64166.00</td><td style='text-align:right'>0.0025</td><td style='text-align:right'>0.0075 **</td></tr>
+<tr><td>prob vs cat</td><td style='text-align:right'>269</td><td style='text-align:right'>249</td><td style='text-align:right'>38201.00</td><td style='text-align:right'>0.0057</td><td style='text-align:right'>0.0113 *</td></tr>
+</tbody></table>
+<h4>Form silhouette (<code>form_sil</code>)</h4>
+<table border="1" cellpadding="4" cellspacing="0" style="border-collapse:collapse;font-family:monospace;font-size:0.9em">
+<thead><tr><th>cond_type</th><th>n</th><th>mean</th><th>std</th><th>median</th><th>Q25</th><th>Q75</th><th>min</th><th>max</th></tr></thead>
+<tbody>
+<tr><td>no_cond</td><td style='text-align:right'>453</td><td style='text-align:right'>0.1089</td><td style='text-align:right'>0.0871</td><td style='text-align:right'>0.0882</td><td style='text-align:right'>0.0400</td><td style='text-align:right'>0.1522</td><td style='text-align:right'>-0.0225</td><td style='text-align:right'>0.4476</td></tr>
+<tr><td>prob</td><td style='text-align:right'>269</td><td style='text-align:right'>0.1219</td><td style='text-align:right'>0.0888</td><td style='text-align:right'>0.1039</td><td style='text-align:right'>0.0549</td><td style='text-align:right'>0.1718</td><td style='text-align:right'>-0.0259</td><td style='text-align:right'>0.4862</td></tr>
+<tr><td>cat</td><td style='text-align:right'>165</td><td style='text-align:right'>0.1378</td><td style='text-align:right'>0.0981</td><td style='text-align:right'>0.1362</td><td style='text-align:right'>0.0618</td><td style='text-align:right'>0.2065</td><td style='text-align:right'>-0.0613</td><td style='text-align:right'>0.3706</td></tr>
+</tbody></table>
+<p>Kruskal-Wallis across [no_cond, prob, cat]: H = 14.472, df = 2, <b>p = 0.0007</b></p>
+<table border="1" cellpadding="4" cellspacing="0" style="border-collapse:collapse;font-family:monospace;font-size:0.9em">
+<thead><tr><th>pair</th><th>n_a</th><th>n_b</th><th>U</th><th>p (raw)</th><th>p (Holm)</th></tr></thead>
+<tbody>
+<tr><td>no_cond vs prob</td><td style='text-align:right'>453</td><td style='text-align:right'>269</td><td style='text-align:right'>54875.00</td><td style='text-align:right'>0.0255</td><td style='text-align:right'>0.0510</td></tr>
+<tr><td>no_cond vs cat</td><td style='text-align:right'>453</td><td style='text-align:right'>165</td><td style='text-align:right'>30399.00</td><td style='text-align:right'>0.0004</td><td style='text-align:right'>0.0012 **</td></tr>
+<tr><td>prob vs cat</td><td style='text-align:right'>269</td><td style='text-align:right'>165</td><td style='text-align:right'>19872.00</td><td style='text-align:right'>0.0674</td><td style='text-align:right'>0.0674</td></tr>
+</tbody></table>
+<h2>Model: answerdotai_ModernBERT-base</h2>
+<h3>embed_type = <code>delta</code></h3>
+<h4>k=2 silhouette (<code>k2_sil</code>)</h4>
+<table border="1" cellpadding="4" cellspacing="0" style="border-collapse:collapse;font-family:monospace;font-size:0.9em">
+<thead><tr><th>cond_type</th><th>n</th><th>mean</th><th>std</th><th>median</th><th>Q25</th><th>Q75</th><th>min</th><th>max</th></tr></thead>
+<tbody>
+<tr><td>no_cond</td><td style='text-align:right'>114</td><td style='text-align:right'>0.5456</td><td style='text-align:right'>0.0497</td><td style='text-align:right'>0.5567</td><td style='text-align:right'>0.5117</td><td style='text-align:right'>0.5832</td><td style='text-align:right'>0.4124</td><td style='text-align:right'>0.6587</td></tr>
+<tr><td>prob</td><td style='text-align:right'>68</td><td style='text-align:right'>0.5352</td><td style='text-align:right'>0.0887</td><td style='text-align:right'>0.5525</td><td style='text-align:right'>0.5135</td><td style='text-align:right'>0.5767</td><td style='text-align:right'>-0.0649</td><td style='text-align:right'>0.6600</td></tr>
+<tr><td>cat</td><td style='text-align:right'>63</td><td style='text-align:right'>0.3041</td><td style='text-align:right'>0.2443</td><td style='text-align:right'>0.1763</td><td style='text-align:right'>0.0708</td><td style='text-align:right'>0.5480</td><td style='text-align:right'>-0.0438</td><td style='text-align:right'>0.6240</td></tr>
+</tbody></table>
+<p>Kruskal-Wallis across [no_cond, prob, cat]: H = 31.142, df = 2, <b>p = 0.0000</b></p>
+<table border="1" cellpadding="4" cellspacing="0" style="border-collapse:collapse;font-family:monospace;font-size:0.9em">
+<thead><tr><th>pair</th><th>n_a</th><th>n_b</th><th>U</th><th>p (raw)</th><th>p (Holm)</th></tr></thead>
+<tbody>
+<tr><td>no_cond vs prob</td><td style='text-align:right'>114</td><td style='text-align:right'>68</td><td style='text-align:right'>4059.00</td><td style='text-align:right'>0.5956</td><td style='text-align:right'>0.5956</td></tr>
+<tr><td>no_cond vs cat</td><td style='text-align:right'>114</td><td style='text-align:right'>63</td><td style='text-align:right'>5324.00</td><td style='text-align:right'>0.0000</td><td style='text-align:right'>0.0000 ***</td></tr>
+<tr><td>prob vs cat</td><td style='text-align:right'>68</td><td style='text-align:right'>63</td><td style='text-align:right'>3104.00</td><td style='text-align:right'>0.0000</td><td style='text-align:right'>0.0000 ***</td></tr>
+</tbody></table>
+<h4>Form silhouette (<code>form_sil</code>)</h4>
+<table border="1" cellpadding="4" cellspacing="0" style="border-collapse:collapse;font-family:monospace;font-size:0.9em">
+<thead><tr><th>cond_type</th><th>n</th><th>mean</th><th>std</th><th>median</th><th>Q25</th><th>Q75</th><th>min</th><th>max</th></tr></thead>
+<tbody>
+<tr><td>no_cond</td><td style='text-align:right'>114</td><td style='text-align:right'>0.5456</td><td style='text-align:right'>0.0497</td><td style='text-align:right'>0.5567</td><td style='text-align:right'>0.5117</td><td style='text-align:right'>0.5832</td><td style='text-align:right'>0.4124</td><td style='text-align:right'>0.6587</td></tr>
+<tr><td>prob</td><td style='text-align:right'>68</td><td style='text-align:right'>0.5436</td><td style='text-align:right'>0.0494</td><td style='text-align:right'>0.5525</td><td style='text-align:right'>0.5135</td><td style='text-align:right'>0.5767</td><td style='text-align:right'>0.4135</td><td style='text-align:right'>0.6600</td></tr>
+<tr><td>cat</td><td style='text-align:right'>42</td><td style='text-align:right'>0.5422</td><td style='text-align:right'>0.0568</td><td style='text-align:right'>0.5431</td><td style='text-align:right'>0.5123</td><td style='text-align:right'>0.5920</td><td style='text-align:right'>0.3563</td><td style='text-align:right'>0.6338</td></tr>
+</tbody></table>
+<p>Kruskal-Wallis across [no_cond, prob, cat]: H = 0.237, df = 2, <b>p = 0.8882</b></p>
+<table border="1" cellpadding="4" cellspacing="0" style="border-collapse:collapse;font-family:monospace;font-size:0.9em">
+<thead><tr><th>pair</th><th>n_a</th><th>n_b</th><th>U</th><th>p (raw)</th><th>p (Holm)</th></tr></thead>
+<tbody>
+<tr><td>no_cond vs prob</td><td style='text-align:right'>114</td><td style='text-align:right'>68</td><td style='text-align:right'>4034.00</td><td style='text-align:right'>0.6469</td><td style='text-align:right'>1.0000</td></tr>
+<tr><td>no_cond vs cat</td><td style='text-align:right'>114</td><td style='text-align:right'>42</td><td style='text-align:right'>2472.00</td><td style='text-align:right'>0.7568</td><td style='text-align:right'>1.0000</td></tr>
+<tr><td>prob vs cat</td><td style='text-align:right'>68</td><td style='text-align:right'>42</td><td style='text-align:right'>1445.00</td><td style='text-align:right'>0.9191</td><td style='text-align:right'>1.0000</td></tr>
+</tbody></table>
+<h3>embed_type = <code>orig</code></h3>
+<h4>k=2 silhouette (<code>k2_sil</code>)</h4>
+<table border="1" cellpadding="4" cellspacing="0" style="border-collapse:collapse;font-family:monospace;font-size:0.9em">
+<thead><tr><th>cond_type</th><th>n</th><th>mean</th><th>std</th><th>median</th><th>Q25</th><th>Q75</th><th>min</th><th>max</th></tr></thead>
+<tbody>
+<tr><td>no_cond</td><td style='text-align:right'>114</td><td style='text-align:right'>0.1904</td><td style='text-align:right'>0.0700</td><td style='text-align:right'>0.1909</td><td style='text-align:right'>0.1416</td><td style='text-align:right'>0.2425</td><td style='text-align:right'>0.0300</td><td style='text-align:right'>0.4174</td></tr>
+<tr><td>prob</td><td style='text-align:right'>68</td><td style='text-align:right'>0.1768</td><td style='text-align:right'>0.0837</td><td style='text-align:right'>0.1631</td><td style='text-align:right'>0.1156</td><td style='text-align:right'>0.2367</td><td style='text-align:right'>0.0307</td><td style='text-align:right'>0.3802</td></tr>
+<tr><td>cat</td><td style='text-align:right'>63</td><td style='text-align:right'>0.1289</td><td style='text-align:right'>0.0817</td><td style='text-align:right'>0.1219</td><td style='text-align:right'>0.0704</td><td style='text-align:right'>0.1593</td><td style='text-align:right'>-0.0091</td><td style='text-align:right'>0.3706</td></tr>
+</tbody></table>
+<p>Kruskal-Wallis across [no_cond, prob, cat]: H = 27.478, df = 2, <b>p = 0.0000</b></p>
+<table border="1" cellpadding="4" cellspacing="0" style="border-collapse:collapse;font-family:monospace;font-size:0.9em">
+<thead><tr><th>pair</th><th>n_a</th><th>n_b</th><th>U</th><th>p (raw)</th><th>p (Holm)</th></tr></thead>
+<tbody>
+<tr><td>no_cond vs prob</td><td style='text-align:right'>114</td><td style='text-align:right'>68</td><td style='text-align:right'>4377.00</td><td style='text-align:right'>0.1455</td><td style='text-align:right'>0.1455</td></tr>
+<tr><td>no_cond vs cat</td><td style='text-align:right'>114</td><td style='text-align:right'>63</td><td style='text-align:right'>5299.00</td><td style='text-align:right'>0.0000</td><td style='text-align:right'>0.0000 ***</td></tr>
+<tr><td>prob vs cat</td><td style='text-align:right'>68</td><td style='text-align:right'>63</td><td style='text-align:right'>2873.00</td><td style='text-align:right'>0.0008</td><td style='text-align:right'>0.0015 **</td></tr>
+</tbody></table>
+<h4>Form silhouette (<code>form_sil</code>)</h4>
+<table border="1" cellpadding="4" cellspacing="0" style="border-collapse:collapse;font-family:monospace;font-size:0.9em">
+<thead><tr><th>cond_type</th><th>n</th><th>mean</th><th>std</th><th>median</th><th>Q25</th><th>Q75</th><th>min</th><th>max</th></tr></thead>
+<tbody>
+<tr><td>no_cond</td><td style='text-align:right'>114</td><td style='text-align:right'>0.1948</td><td style='text-align:right'>0.0663</td><td style='text-align:right'>0.1921</td><td style='text-align:right'>0.1461</td><td style='text-align:right'>0.2427</td><td style='text-align:right'>0.0421</td><td style='text-align:right'>0.4174</td></tr>
+<tr><td>prob</td><td style='text-align:right'>68</td><td style='text-align:right'>0.2000</td><td style='text-align:right'>0.0747</td><td style='text-align:right'>0.1927</td><td style='text-align:right'>0.1435</td><td style='text-align:right'>0.2534</td><td style='text-align:right'>0.0568</td><td style='text-align:right'>0.3802</td></tr>
+<tr><td>cat</td><td style='text-align:right'>42</td><td style='text-align:right'>0.2050</td><td style='text-align:right'>0.0826</td><td style='text-align:right'>0.1844</td><td style='text-align:right'>0.1453</td><td style='text-align:right'>0.2760</td><td style='text-align:right'>0.0672</td><td style='text-align:right'>0.3706</td></tr>
+</tbody></table>
+<p>Kruskal-Wallis across [no_cond, prob, cat]: H = 0.308, df = 2, <b>p = 0.8574</b></p>
+<table border="1" cellpadding="4" cellspacing="0" style="border-collapse:collapse;font-family:monospace;font-size:0.9em">
+<thead><tr><th>pair</th><th>n_a</th><th>n_b</th><th>U</th><th>p (raw)</th><th>p (Holm)</th></tr></thead>
+<tbody>
+<tr><td>no_cond vs prob</td><td style='text-align:right'>114</td><td style='text-align:right'>68</td><td style='text-align:right'>3760.00</td><td style='text-align:right'>0.7369</td><td style='text-align:right'>1.0000</td></tr>
+<tr><td>no_cond vs cat</td><td style='text-align:right'>114</td><td style='text-align:right'>42</td><td style='text-align:right'>2260.00</td><td style='text-align:right'>0.5938</td><td style='text-align:right'>1.0000</td></tr>
+<tr><td>prob vs cat</td><td style='text-align:right'>68</td><td style='text-align:right'>42</td><td style='text-align:right'>1399.00</td><td style='text-align:right'>0.8608</td><td style='text-align:right'>1.0000</td></tr>
+</tbody></table>
+<h2>Model: bert_base_uncased</h2>
+<h3>embed_type = <code>delta</code></h3>
+<h4>k=2 silhouette (<code>k2_sil</code>)</h4>
+<table border="1" cellpadding="4" cellspacing="0" style="border-collapse:collapse;font-family:monospace;font-size:0.9em">
+<thead><tr><th>cond_type</th><th>n</th><th>mean</th><th>std</th><th>median</th><th>Q25</th><th>Q75</th><th>min</th><th>max</th></tr></thead>
+<tbody>
+<tr><td>no_cond</td><td style='text-align:right'>114</td><td style='text-align:right'>0.3939</td><td style='text-align:right'>0.1050</td><td style='text-align:right'>0.4085</td><td style='text-align:right'>0.3482</td><td style='text-align:right'>0.4566</td><td style='text-align:right'>-0.0009</td><td style='text-align:right'>0.6088</td></tr>
+<tr><td>prob</td><td style='text-align:right'>68</td><td style='text-align:right'>0.3512</td><td style='text-align:right'>0.1726</td><td style='text-align:right'>0.3910</td><td style='text-align:right'>0.2596</td><td style='text-align:right'>0.4570</td><td style='text-align:right'>-0.1211</td><td style='text-align:right'>0.7455</td></tr>
+<tr><td>cat</td><td style='text-align:right'>63</td><td style='text-align:right'>0.2046</td><td style='text-align:right'>0.1693</td><td style='text-align:right'>0.1164</td><td style='text-align:right'>0.0717</td><td style='text-align:right'>0.3779</td><td style='text-align:right'>-0.0415</td><td style='text-align:right'>0.5154</td></tr>
+</tbody></table>
+<p>Kruskal-Wallis across [no_cond, prob, cat]: H = 40.505, df = 2, <b>p = 0.0000</b></p>
+<table border="1" cellpadding="4" cellspacing="0" style="border-collapse:collapse;font-family:monospace;font-size:0.9em">
+<thead><tr><th>pair</th><th>n_a</th><th>n_b</th><th>U</th><th>p (raw)</th><th>p (Holm)</th></tr></thead>
+<tbody>
+<tr><td>no_cond vs prob</td><td style='text-align:right'>114</td><td style='text-align:right'>68</td><td style='text-align:right'>4342.00</td><td style='text-align:right'>0.1758</td><td style='text-align:right'>0.1758</td></tr>
+<tr><td>no_cond vs cat</td><td style='text-align:right'>114</td><td style='text-align:right'>63</td><td style='text-align:right'>5679.00</td><td style='text-align:right'>0.0000</td><td style='text-align:right'>0.0000 ***</td></tr>
+<tr><td>prob vs cat</td><td style='text-align:right'>68</td><td style='text-align:right'>63</td><td style='text-align:right'>3058.00</td><td style='text-align:right'>0.0000</td><td style='text-align:right'>0.0000 ***</td></tr>
+</tbody></table>
+<h4>Form silhouette (<code>form_sil</code>)</h4>
+<table border="1" cellpadding="4" cellspacing="0" style="border-collapse:collapse;font-family:monospace;font-size:0.9em">
+<thead><tr><th>cond_type</th><th>n</th><th>mean</th><th>std</th><th>median</th><th>Q25</th><th>Q75</th><th>min</th><th>max</th></tr></thead>
+<tbody>
+<tr><td>no_cond</td><td style='text-align:right'>114</td><td style='text-align:right'>0.3955</td><td style='text-align:right'>0.0917</td><td style='text-align:right'>0.4062</td><td style='text-align:right'>0.3482</td><td style='text-align:right'>0.4557</td><td style='text-align:right'>0.1130</td><td style='text-align:right'>0.5700</td></tr>
+<tr><td>prob</td><td style='text-align:right'>68</td><td style='text-align:right'>0.3923</td><td style='text-align:right'>0.1069</td><td style='text-align:right'>0.4088</td><td style='text-align:right'>0.3542</td><td style='text-align:right'>0.4570</td><td style='text-align:right'>0.0119</td><td style='text-align:right'>0.5937</td></tr>
+<tr><td>cat</td><td style='text-align:right'>42</td><td style='text-align:right'>0.3845</td><td style='text-align:right'>0.0911</td><td style='text-align:right'>0.4019</td><td style='text-align:right'>0.3458</td><td style='text-align:right'>0.4447</td><td style='text-align:right'>0.0313</td><td style='text-align:right'>0.5154</td></tr>
+</tbody></table>
+<p>Kruskal-Wallis across [no_cond, prob, cat]: H = 0.392, df = 2, <b>p = 0.8221</b></p>
+<table border="1" cellpadding="4" cellspacing="0" style="border-collapse:collapse;font-family:monospace;font-size:0.9em">
+<thead><tr><th>pair</th><th>n_a</th><th>n_b</th><th>U</th><th>p (raw)</th><th>p (Holm)</th></tr></thead>
+<tbody>
+<tr><td>no_cond vs prob</td><td style='text-align:right'>114</td><td style='text-align:right'>68</td><td style='text-align:right'>3895.00</td><td style='text-align:right'>0.9571</td><td style='text-align:right'>1.0000</td></tr>
+<tr><td>no_cond vs cat</td><td style='text-align:right'>114</td><td style='text-align:right'>42</td><td style='text-align:right'>2547.00</td><td style='text-align:right'>0.5423</td><td style='text-align:right'>1.0000</td></tr>
+<tr><td>prob vs cat</td><td style='text-align:right'>68</td><td style='text-align:right'>42</td><td style='text-align:right'>1511.00</td><td style='text-align:right'>0.6117</td><td style='text-align:right'>1.0000</td></tr>
+</tbody></table>
+<h3>embed_type = <code>orig</code></h3>
+<h4>k=2 silhouette (<code>k2_sil</code>)</h4>
+<table border="1" cellpadding="4" cellspacing="0" style="border-collapse:collapse;font-family:monospace;font-size:0.9em">
+<thead><tr><th>cond_type</th><th>n</th><th>mean</th><th>std</th><th>median</th><th>Q25</th><th>Q75</th><th>min</th><th>max</th></tr></thead>
+<tbody>
+<tr><td>no_cond</td><td style='text-align:right'>114</td><td style='text-align:right'>0.0940</td><td style='text-align:right'>0.0509</td><td style='text-align:right'>0.0920</td><td style='text-align:right'>0.0586</td><td style='text-align:right'>0.1105</td><td style='text-align:right'>0.0088</td><td style='text-align:right'>0.2601</td></tr>
+<tr><td>prob</td><td style='text-align:right'>68</td><td style='text-align:right'>0.1107</td><td style='text-align:right'>0.0678</td><td style='text-align:right'>0.0956</td><td style='text-align:right'>0.0653</td><td style='text-align:right'>0.1370</td><td style='text-align:right'>0.0086</td><td style='text-align:right'>0.3199</td></tr>
+<tr><td>cat</td><td style='text-align:right'>63</td><td style='text-align:right'>0.0951</td><td style='text-align:right'>0.0462</td><td style='text-align:right'>0.0855</td><td style='text-align:right'>0.0605</td><td style='text-align:right'>0.1215</td><td style='text-align:right'>0.0259</td><td style='text-align:right'>0.2023</td></tr>
+</tbody></table>
+<p>Kruskal-Wallis across [no_cond, prob, cat]: H = 2.064, df = 2, <b>p = 0.3562</b></p>
+<table border="1" cellpadding="4" cellspacing="0" style="border-collapse:collapse;font-family:monospace;font-size:0.9em">
+<thead><tr><th>pair</th><th>n_a</th><th>n_b</th><th>U</th><th>p (raw)</th><th>p (Holm)</th></tr></thead>
+<tbody>
+<tr><td>no_cond vs prob</td><td style='text-align:right'>114</td><td style='text-align:right'>68</td><td style='text-align:right'>3376.00</td><td style='text-align:right'>0.1463</td><td style='text-align:right'>0.4389</td></tr>
+<tr><td>no_cond vs cat</td><td style='text-align:right'>114</td><td style='text-align:right'>63</td><td style='text-align:right'>3568.00</td><td style='text-align:right'>0.9450</td><td style='text-align:right'>0.9450</td></tr>
+<tr><td>prob vs cat</td><td style='text-align:right'>68</td><td style='text-align:right'>63</td><td style='text-align:right'>2352.00</td><td style='text-align:right'>0.3345</td><td style='text-align:right'>0.6690</td></tr>
+</tbody></table>
+<h4>Form silhouette (<code>form_sil</code>)</h4>
+<table border="1" cellpadding="4" cellspacing="0" style="border-collapse:collapse;font-family:monospace;font-size:0.9em">
+<thead><tr><th>cond_type</th><th>n</th><th>mean</th><th>std</th><th>median</th><th>Q25</th><th>Q75</th><th>min</th><th>max</th></tr></thead>
+<tbody>
+<tr><td>no_cond</td><td style='text-align:right'>114</td><td style='text-align:right'>0.0794</td><td style='text-align:right'>0.0630</td><td style='text-align:right'>0.0652</td><td style='text-align:right'>0.0349</td><td style='text-align:right'>0.1086</td><td style='text-align:right'>0.0087</td><td style='text-align:right'>0.4476</td></tr>
+<tr><td>prob</td><td style='text-align:right'>68</td><td style='text-align:right'>0.0942</td><td style='text-align:right'>0.0632</td><td style='text-align:right'>0.0851</td><td style='text-align:right'>0.0441</td><td style='text-align:right'>0.1229</td><td style='text-align:right'>0.0025</td><td style='text-align:right'>0.3472</td></tr>
+<tr><td>cat</td><td style='text-align:right'>42</td><td style='text-align:right'>0.0959</td><td style='text-align:right'>0.0803</td><td style='text-align:right'>0.0864</td><td style='text-align:right'>0.0371</td><td style='text-align:right'>0.1430</td><td style='text-align:right'>-0.0325</td><td style='text-align:right'>0.3518</td></tr>
+</tbody></table>
+<p>Kruskal-Wallis across [no_cond, prob, cat]: H = 4.420, df = 2, <b>p = 0.1097</b></p>
+<table border="1" cellpadding="4" cellspacing="0" style="border-collapse:collapse;font-family:monospace;font-size:0.9em">
+<thead><tr><th>pair</th><th>n_a</th><th>n_b</th><th>U</th><th>p (raw)</th><th>p (Holm)</th></tr></thead>
+<tbody>
+<tr><td>no_cond vs prob</td><td style='text-align:right'>114</td><td style='text-align:right'>68</td><td style='text-align:right'>3153.00</td><td style='text-align:right'>0.0356</td><td style='text-align:right'>0.1068</td></tr>
+<tr><td>no_cond vs cat</td><td style='text-align:right'>114</td><td style='text-align:right'>42</td><td style='text-align:right'>2113.00</td><td style='text-align:right'>0.2624</td><td style='text-align:right'>0.5248</td></tr>
+<tr><td>prob vs cat</td><td style='text-align:right'>68</td><td style='text-align:right'>42</td><td style='text-align:right'>1446.00</td><td style='text-align:right'>0.9143</td><td style='text-align:right'>0.9143</td></tr>
+</tbody></table>
+<h2>Model: kanishka_GlossBERT</h2>
+<h3>embed_type = <code>delta</code></h3>
+<h4>k=2 silhouette (<code>k2_sil</code>)</h4>
+<table border="1" cellpadding="4" cellspacing="0" style="border-collapse:collapse;font-family:monospace;font-size:0.9em">
+<thead><tr><th>cond_type</th><th>n</th><th>mean</th><th>std</th><th>median</th><th>Q25</th><th>Q75</th><th>min</th><th>max</th></tr></thead>
+<tbody>
+<tr><td>no_cond</td><td style='text-align:right'>114</td><td style='text-align:right'>0.3858</td><td style='text-align:right'>0.1074</td><td style='text-align:right'>0.4100</td><td style='text-align:right'>0.3240</td><td style='text-align:right'>0.4666</td><td style='text-align:right'>0.0146</td><td style='text-align:right'>0.5924</td></tr>
+<tr><td>prob</td><td style='text-align:right'>68</td><td style='text-align:right'>0.3606</td><td style='text-align:right'>0.1631</td><td style='text-align:right'>0.4004</td><td style='text-align:right'>0.2865</td><td style='text-align:right'>0.4532</td><td style='text-align:right'>-0.1308</td><td style='text-align:right'>0.7808</td></tr>
+<tr><td>cat</td><td style='text-align:right'>63</td><td style='text-align:right'>0.2185</td><td style='text-align:right'>0.1764</td><td style='text-align:right'>0.1391</td><td style='text-align:right'>0.0786</td><td style='text-align:right'>0.4065</td><td style='text-align:right'>-0.0567</td><td style='text-align:right'>0.5427</td></tr>
+</tbody></table>
+<p>Kruskal-Wallis across [no_cond, prob, cat]: H = 33.554, df = 2, <b>p = 0.0000</b></p>
+<table border="1" cellpadding="4" cellspacing="0" style="border-collapse:collapse;font-family:monospace;font-size:0.9em">
+<thead><tr><th>pair</th><th>n_a</th><th>n_b</th><th>U</th><th>p (raw)</th><th>p (Holm)</th></tr></thead>
+<tbody>
+<tr><td>no_cond vs prob</td><td style='text-align:right'>114</td><td style='text-align:right'>68</td><td style='text-align:right'>4145.00</td><td style='text-align:right'>0.4349</td><td style='text-align:right'>0.4349</td></tr>
+<tr><td>no_cond vs cat</td><td style='text-align:right'>114</td><td style='text-align:right'>63</td><td style='text-align:right'>5472.00</td><td style='text-align:right'>0.0000</td><td style='text-align:right'>0.0000 ***</td></tr>
+<tr><td>prob vs cat</td><td style='text-align:right'>68</td><td style='text-align:right'>63</td><td style='text-align:right'>3036.00</td><td style='text-align:right'>0.0000</td><td style='text-align:right'>0.0001 ***</td></tr>
+</tbody></table>
+<h4>Form silhouette (<code>form_sil</code>)</h4>
+<table border="1" cellpadding="4" cellspacing="0" style="border-collapse:collapse;font-family:monospace;font-size:0.9em">
+<thead><tr><th>cond_type</th><th>n</th><th>mean</th><th>std</th><th>median</th><th>Q25</th><th>Q75</th><th>min</th><th>max</th></tr></thead>
+<tbody>
+<tr><td>no_cond</td><td style='text-align:right'>114</td><td style='text-align:right'>0.3883</td><td style='text-align:right'>0.1000</td><td style='text-align:right'>0.4080</td><td style='text-align:right'>0.3240</td><td style='text-align:right'>0.4666</td><td style='text-align:right'>0.1316</td><td style='text-align:right'>0.5924</td></tr>
+<tr><td>prob</td><td style='text-align:right'>68</td><td style='text-align:right'>0.3892</td><td style='text-align:right'>0.1134</td><td style='text-align:right'>0.4132</td><td style='text-align:right'>0.3147</td><td style='text-align:right'>0.4754</td><td style='text-align:right'>0.0257</td><td style='text-align:right'>0.5957</td></tr>
+<tr><td>cat</td><td style='text-align:right'>42</td><td style='text-align:right'>0.3995</td><td style='text-align:right'>0.0860</td><td style='text-align:right'>0.4227</td><td style='text-align:right'>0.3631</td><td style='text-align:right'>0.4503</td><td style='text-align:right'>0.2040</td><td style='text-align:right'>0.5476</td></tr>
+</tbody></table>
+<p>Kruskal-Wallis across [no_cond, prob, cat]: H = 0.241, df = 2, <b>p = 0.8866</b></p>
+<table border="1" cellpadding="4" cellspacing="0" style="border-collapse:collapse;font-family:monospace;font-size:0.9em">
+<thead><tr><th>pair</th><th>n_a</th><th>n_b</th><th>U</th><th>p (raw)</th><th>p (Holm)</th></tr></thead>
+<tbody>
+<tr><td>no_cond vs prob</td><td style='text-align:right'>114</td><td style='text-align:right'>68</td><td style='text-align:right'>3798.00</td><td style='text-align:right'>0.8217</td><td style='text-align:right'>1.0000</td></tr>
+<tr><td>no_cond vs cat</td><td style='text-align:right'>114</td><td style='text-align:right'>42</td><td style='text-align:right'>2269.00</td><td style='text-align:right'>0.6189</td><td style='text-align:right'>1.0000</td></tr>
+<tr><td>prob vs cat</td><td style='text-align:right'>68</td><td style='text-align:right'>42</td><td style='text-align:right'>1391.00</td><td style='text-align:right'>0.8223</td><td style='text-align:right'>1.0000</td></tr>
+</tbody></table>
+<h3>embed_type = <code>orig</code></h3>
+<h4>k=2 silhouette (<code>k2_sil</code>)</h4>
+<table border="1" cellpadding="4" cellspacing="0" style="border-collapse:collapse;font-family:monospace;font-size:0.9em">
+<thead><tr><th>cond_type</th><th>n</th><th>mean</th><th>std</th><th>median</th><th>Q25</th><th>Q75</th><th>min</th><th>max</th></tr></thead>
+<tbody>
+<tr><td>no_cond</td><td style='text-align:right'>114</td><td style='text-align:right'>0.1267</td><td style='text-align:right'>0.0648</td><td style='text-align:right'>0.1121</td><td style='text-align:right'>0.0846</td><td style='text-align:right'>0.1513</td><td style='text-align:right'>0.0051</td><td style='text-align:right'>0.4017</td></tr>
+<tr><td>prob</td><td style='text-align:right'>68</td><td style='text-align:right'>0.1310</td><td style='text-align:right'>0.0641</td><td style='text-align:right'>0.1180</td><td style='text-align:right'>0.0888</td><td style='text-align:right'>0.1546</td><td style='text-align:right'>-0.0040</td><td style='text-align:right'>0.3269</td></tr>
+<tr><td>cat</td><td style='text-align:right'>63</td><td style='text-align:right'>0.1149</td><td style='text-align:right'>0.0667</td><td style='text-align:right'>0.1022</td><td style='text-align:right'>0.0706</td><td style='text-align:right'>0.1492</td><td style='text-align:right'>0.0130</td><td style='text-align:right'>0.3930</td></tr>
+</tbody></table>
+<p>Kruskal-Wallis across [no_cond, prob, cat]: H = 3.499, df = 2, <b>p = 0.1739</b></p>
+<table border="1" cellpadding="4" cellspacing="0" style="border-collapse:collapse;font-family:monospace;font-size:0.9em">
+<thead><tr><th>pair</th><th>n_a</th><th>n_b</th><th>U</th><th>p (raw)</th><th>p (Holm)</th></tr></thead>
+<tbody>
+<tr><td>no_cond vs prob</td><td style='text-align:right'>114</td><td style='text-align:right'>68</td><td style='text-align:right'>3622.00</td><td style='text-align:right'>0.4609</td><td style='text-align:right'>0.4609</td></tr>
+<tr><td>no_cond vs cat</td><td style='text-align:right'>114</td><td style='text-align:right'>63</td><td style='text-align:right'>4048.00</td><td style='text-align:right'>0.1619</td><td style='text-align:right'>0.3239</td></tr>
+<tr><td>prob vs cat</td><td style='text-align:right'>68</td><td style='text-align:right'>63</td><td style='text-align:right'>2526.00</td><td style='text-align:right'>0.0773</td><td style='text-align:right'>0.2319</td></tr>
+</tbody></table>
+<h4>Form silhouette (<code>form_sil</code>)</h4>
+<table border="1" cellpadding="4" cellspacing="0" style="border-collapse:collapse;font-family:monospace;font-size:0.9em">
+<thead><tr><th>cond_type</th><th>n</th><th>mean</th><th>std</th><th>median</th><th>Q25</th><th>Q75</th><th>min</th><th>max</th></tr></thead>
+<tbody>
+<tr><td>no_cond</td><td style='text-align:right'>114</td><td style='text-align:right'>0.0828</td><td style='text-align:right'>0.0702</td><td style='text-align:right'>0.0679</td><td style='text-align:right'>0.0336</td><td style='text-align:right'>0.1119</td><td style='text-align:right'>-0.0039</td><td style='text-align:right'>0.4017</td></tr>
+<tr><td>prob</td><td style='text-align:right'>68</td><td style='text-align:right'>0.0965</td><td style='text-align:right'>0.0658</td><td style='text-align:right'>0.0834</td><td style='text-align:right'>0.0459</td><td style='text-align:right'>0.1393</td><td style='text-align:right'>0.0071</td><td style='text-align:right'>0.3269</td></tr>
+<tr><td>cat</td><td style='text-align:right'>42</td><td style='text-align:right'>0.0995</td><td style='text-align:right'>0.0884</td><td style='text-align:right'>0.0820</td><td style='text-align:right'>0.0351</td><td style='text-align:right'>0.1595</td><td style='text-align:right'>-0.0613</td><td style='text-align:right'>0.3454</td></tr>
+</tbody></table>
+<p>Kruskal-Wallis across [no_cond, prob, cat]: H = 3.694, df = 2, <b>p = 0.1577</b></p>
+<table border="1" cellpadding="4" cellspacing="0" style="border-collapse:collapse;font-family:monospace;font-size:0.9em">
+<thead><tr><th>pair</th><th>n_a</th><th>n_b</th><th>U</th><th>p (raw)</th><th>p (Holm)</th></tr></thead>
+<tbody>
+<tr><td>no_cond vs prob</td><td style='text-align:right'>114</td><td style='text-align:right'>68</td><td style='text-align:right'>3225.00</td><td style='text-align:right'>0.0585</td><td style='text-align:right'>0.1755</td></tr>
+<tr><td>no_cond vs cat</td><td style='text-align:right'>114</td><td style='text-align:right'>42</td><td style='text-align:right'>2125.00</td><td style='text-align:right'>0.2834</td><td style='text-align:right'>0.5667</td></tr>
+<tr><td>prob vs cat</td><td style='text-align:right'>68</td><td style='text-align:right'>42</td><td style='text-align:right'>1447.00</td><td style='text-align:right'>0.9094</td><td style='text-align:right'>0.9094</td></tr>
+</tbody></table>
+<h2>Model: transfo-xl-wt103</h2>
+<h3>embed_type = <code>delta</code></h3>
+<h4>k=2 silhouette (<code>k2_sil</code>)</h4>
+<table border="1" cellpadding="4" cellspacing="0" style="border-collapse:collapse;font-family:monospace;font-size:0.9em">
+<thead><tr><th>cond_type</th><th>n</th><th>mean</th><th>std</th><th>median</th><th>Q25</th><th>Q75</th><th>min</th><th>max</th></tr></thead>
+<tbody>
+<tr><td>no_cond</td><td style='text-align:right'>111</td><td style='text-align:right'>0.4187</td><td style='text-align:right'>0.1238</td><td style='text-align:right'>0.4080</td><td style='text-align:right'>0.3388</td><td style='text-align:right'>0.4904</td><td style='text-align:right'>0.1245</td><td style='text-align:right'>0.7743</td></tr>
+<tr><td>prob</td><td style='text-align:right'>65</td><td style='text-align:right'>0.4255</td><td style='text-align:right'>0.1187</td><td style='text-align:right'>0.4512</td><td style='text-align:right'>0.3564</td><td style='text-align:right'>0.4921</td><td style='text-align:right'>0.0786</td><td style='text-align:right'>0.7006</td></tr>
+<tr><td>cat</td><td style='text-align:right'>60</td><td style='text-align:right'>0.2612</td><td style='text-align:right'>0.1777</td><td style='text-align:right'>0.2056</td><td style='text-align:right'>0.1231</td><td style='text-align:right'>0.4344</td><td style='text-align:right'>-0.0407</td><td style='text-align:right'>0.6173</td></tr>
+</tbody></table>
+<p>Kruskal-Wallis across [no_cond, prob, cat]: H = 35.453, df = 2, <b>p = 0.0000</b></p>
+<table border="1" cellpadding="4" cellspacing="0" style="border-collapse:collapse;font-family:monospace;font-size:0.9em">
+<thead><tr><th>pair</th><th>n_a</th><th>n_b</th><th>U</th><th>p (raw)</th><th>p (Holm)</th></tr></thead>
+<tbody>
+<tr><td>no_cond vs prob</td><td style='text-align:right'>111</td><td style='text-align:right'>65</td><td style='text-align:right'>3303.00</td><td style='text-align:right'>0.3514</td><td style='text-align:right'>0.3514</td></tr>
+<tr><td>no_cond vs cat</td><td style='text-align:right'>111</td><td style='text-align:right'>60</td><td style='text-align:right'>5020.00</td><td style='text-align:right'>0.0000</td><td style='text-align:right'>0.0000 ***</td></tr>
+<tr><td>prob vs cat</td><td style='text-align:right'>65</td><td style='text-align:right'>60</td><td style='text-align:right'>2959.00</td><td style='text-align:right'>0.0000</td><td style='text-align:right'>0.0000 ***</td></tr>
+</tbody></table>
+<h4>Form silhouette (<code>form_sil</code>)</h4>
+<table border="1" cellpadding="4" cellspacing="0" style="border-collapse:collapse;font-family:monospace;font-size:0.9em">
+<thead><tr><th>cond_type</th><th>n</th><th>mean</th><th>std</th><th>median</th><th>Q25</th><th>Q75</th><th>min</th><th>max</th></tr></thead>
+<tbody>
+<tr><td>no_cond</td><td style='text-align:right'>111</td><td style='text-align:right'>0.3741</td><td style='text-align:right'>0.1272</td><td style='text-align:right'>0.4003</td><td style='text-align:right'>0.3025</td><td style='text-align:right'>0.4557</td><td style='text-align:right'>0.0862</td><td style='text-align:right'>0.6710</td></tr>
+<tr><td>prob</td><td style='text-align:right'>65</td><td style='text-align:right'>0.4000</td><td style='text-align:right'>0.1363</td><td style='text-align:right'>0.4258</td><td style='text-align:right'>0.3206</td><td style='text-align:right'>0.4827</td><td style='text-align:right'>-0.0929</td><td style='text-align:right'>0.7006</td></tr>
+<tr><td>cat</td><td style='text-align:right'>39</td><td style='text-align:right'>0.4511</td><td style='text-align:right'>0.1251</td><td style='text-align:right'>0.4657</td><td style='text-align:right'>0.4268</td><td style='text-align:right'>0.5169</td><td style='text-align:right'>0.0048</td><td style='text-align:right'>0.6173</td></tr>
+</tbody></table>
+<p>Kruskal-Wallis across [no_cond, prob, cat]: H = 14.450, df = 2, <b>p = 0.0007</b></p>
+<table border="1" cellpadding="4" cellspacing="0" style="border-collapse:collapse;font-family:monospace;font-size:0.9em">
+<thead><tr><th>pair</th><th>n_a</th><th>n_b</th><th>U</th><th>p (raw)</th><th>p (Holm)</th></tr></thead>
+<tbody>
+<tr><td>no_cond vs prob</td><td style='text-align:right'>111</td><td style='text-align:right'>65</td><td style='text-align:right'>3102.00</td><td style='text-align:right'>0.1216</td><td style='text-align:right'>0.1216</td></tr>
+<tr><td>no_cond vs cat</td><td style='text-align:right'>111</td><td style='text-align:right'>39</td><td style='text-align:right'>1285.00</td><td style='text-align:right'>0.0002</td><td style='text-align:right'>0.0005 ***</td></tr>
+<tr><td>prob vs cat</td><td style='text-align:right'>65</td><td style='text-align:right'>39</td><td style='text-align:right'>926.00</td><td style='text-align:right'>0.0220</td><td style='text-align:right'>0.0441 *</td></tr>
+</tbody></table>
+<h3>embed_type = <code>orig</code></h3>
+<h4>k=2 silhouette (<code>k2_sil</code>)</h4>
+<table border="1" cellpadding="4" cellspacing="0" style="border-collapse:collapse;font-family:monospace;font-size:0.9em">
+<thead><tr><th>cond_type</th><th>n</th><th>mean</th><th>std</th><th>median</th><th>Q25</th><th>Q75</th><th>min</th><th>max</th></tr></thead>
+<tbody>
+<tr><td>no_cond</td><td style='text-align:right'>111</td><td style='text-align:right'>0.1430</td><td style='text-align:right'>0.0749</td><td style='text-align:right'>0.1282</td><td style='text-align:right'>0.0961</td><td style='text-align:right'>0.1843</td><td style='text-align:right'>0.0208</td><td style='text-align:right'>0.4217</td></tr>
+<tr><td>prob</td><td style='text-align:right'>65</td><td style='text-align:right'>0.1396</td><td style='text-align:right'>0.0664</td><td style='text-align:right'>0.1238</td><td style='text-align:right'>0.0917</td><td style='text-align:right'>0.1808</td><td style='text-align:right'>0.0466</td><td style='text-align:right'>0.3064</td></tr>
+<tr><td>cat</td><td style='text-align:right'>60</td><td style='text-align:right'>0.1537</td><td style='text-align:right'>0.0905</td><td style='text-align:right'>0.1481</td><td style='text-align:right'>0.0937</td><td style='text-align:right'>0.2084</td><td style='text-align:right'>0.0092</td><td style='text-align:right'>0.5288</td></tr>
+</tbody></table>
+<p>Kruskal-Wallis across [no_cond, prob, cat]: H = 1.124, df = 2, <b>p = 0.5702</b></p>
+<table border="1" cellpadding="4" cellspacing="0" style="border-collapse:collapse;font-family:monospace;font-size:0.9em">
+<thead><tr><th>pair</th><th>n_a</th><th>n_b</th><th>U</th><th>p (raw)</th><th>p (Holm)</th></tr></thead>
+<tbody>
+<tr><td>no_cond vs prob</td><td style='text-align:right'>111</td><td style='text-align:right'>65</td><td style='text-align:right'>3708.00</td><td style='text-align:right'>0.7592</td><td style='text-align:right'>0.9726</td></tr>
+<tr><td>no_cond vs cat</td><td style='text-align:right'>111</td><td style='text-align:right'>60</td><td style='text-align:right'>3065.00</td><td style='text-align:right'>0.3920</td><td style='text-align:right'>0.9726</td></tr>
+<tr><td>prob vs cat</td><td style='text-align:right'>65</td><td style='text-align:right'>60</td><td style='text-align:right'>1750.00</td><td style='text-align:right'>0.3242</td><td style='text-align:right'>0.9726</td></tr>
+</tbody></table>
+<h4>Form silhouette (<code>form_sil</code>)</h4>
+<table border="1" cellpadding="4" cellspacing="0" style="border-collapse:collapse;font-family:monospace;font-size:0.9em">
+<thead><tr><th>cond_type</th><th>n</th><th>mean</th><th>std</th><th>median</th><th>Q25</th><th>Q75</th><th>min</th><th>max</th></tr></thead>
+<tbody>
+<tr><td>no_cond</td><td style='text-align:right'>111</td><td style='text-align:right'>0.0777</td><td style='text-align:right'>0.0853</td><td style='text-align:right'>0.0503</td><td style='text-align:right'>0.0179</td><td style='text-align:right'>0.1002</td><td style='text-align:right'>-0.0225</td><td style='text-align:right'>0.4217</td></tr>
+<tr><td>prob</td><td style='text-align:right'>65</td><td style='text-align:right'>0.0960</td><td style='text-align:right'>0.0989</td><td style='text-align:right'>0.0588</td><td style='text-align:right'>0.0332</td><td style='text-align:right'>0.1303</td><td style='text-align:right'>-0.0259</td><td style='text-align:right'>0.4862</td></tr>
+<tr><td>cat</td><td style='text-align:right'>39</td><td style='text-align:right'>0.1520</td><td style='text-align:right'>0.1002</td><td style='text-align:right'>0.1767</td><td style='text-align:right'>0.0583</td><td style='text-align:right'>0.2194</td><td style='text-align:right'>-0.0438</td><td style='text-align:right'>0.3192</td></tr>
+</tbody></table>
+<p>Kruskal-Wallis across [no_cond, prob, cat]: H = 17.049, df = 2, <b>p = 0.0002</b></p>
+<table border="1" cellpadding="4" cellspacing="0" style="border-collapse:collapse;font-family:monospace;font-size:0.9em">
+<thead><tr><th>pair</th><th>n_a</th><th>n_b</th><th>U</th><th>p (raw)</th><th>p (Holm)</th></tr></thead>
+<tbody>
+<tr><td>no_cond vs prob</td><td style='text-align:right'>111</td><td style='text-align:right'>65</td><td style='text-align:right'>3234.00</td><td style='text-align:right'>0.2529</td><td style='text-align:right'>0.2529</td></tr>
+<tr><td>no_cond vs cat</td><td style='text-align:right'>111</td><td style='text-align:right'>39</td><td style='text-align:right'>1201.00</td><td style='text-align:right'>0.0000</td><td style='text-align:right'>0.0001 ***</td></tr>
+<tr><td>prob vs cat</td><td style='text-align:right'>65</td><td style='text-align:right'>39</td><td style='text-align:right'>837.00</td><td style='text-align:right'>0.0039</td><td style='text-align:right'>0.0078 **</td></tr>
+</tbody></table>
+</body>
+</html>
