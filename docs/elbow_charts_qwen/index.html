@@ -1,0 +1,71 @@
+<html>
+<head><title>K-means elbow / silhouette analysis</title></head>
+<body>
+<h1>K-means elbow / silhouette analysis</h1>
+<p>One PNG per optimal-k bucket. Each subplot shows silhouette vs k for a
+single lexeme&times;mps system; the red dashed line marks the optimal k
+(argmax silhouette). Source: <code>run_elbow_analysis.py</code> on
+<code>head_embed_cache_Qwen_Qwen2.5-32B.jsonl</code>
+(k&nbsp;&isin;&nbsp;[2,10]).</p>
+<p>The <code>all</code> bucket uses every token; the <code>no_cond</code>,
+<code>prob</code>, and <code>cat</code> buckets restrict to tokens whose
+meaning is labelled with that <code>cond_type</code> in
+<code>conditioning_by_meaning.csv</code>.</p>
+<h2>Embedding type: <code>orig</code></h2>
+<h3>cond_type = <code>all</code></h3>
+<ul>
+<li><a href="orig/all/elbow_grid_k2.png">orig/all/elbow_grid_k2.png</a> &mdash; systems whose optimal k = 2</li>
+<li><a href="orig/all/elbow_grid_k3.png">orig/all/elbow_grid_k3.png</a> &mdash; systems whose optimal k = 3</li>
+<li><a href="orig/all/elbow_grid_k4.png">orig/all/elbow_grid_k4.png</a> &mdash; systems whose optimal k = 4</li>
+<li><a href="orig/all/elbow_grid_k5.png">orig/all/elbow_grid_k5.png</a> &mdash; systems whose optimal k = 5</li>
+</ul>
+<h3>cond_type = <code>no_cond</code></h3>
+<ul>
+<li><a href="orig/no_cond/elbow_grid_k2.png">orig/no_cond/elbow_grid_k2.png</a> &mdash; systems whose optimal k = 2</li>
+<li><a href="orig/no_cond/elbow_grid_k3.png">orig/no_cond/elbow_grid_k3.png</a> &mdash; systems whose optimal k = 3</li>
+<li><a href="orig/no_cond/elbow_grid_k4.png">orig/no_cond/elbow_grid_k4.png</a> &mdash; systems whose optimal k = 4</li>
+</ul>
+<h3>cond_type = <code>prob</code></h3>
+<ul>
+<li><a href="orig/prob/elbow_grid_k2.png">orig/prob/elbow_grid_k2.png</a> &mdash; systems whose optimal k = 2</li>
+<li><a href="orig/prob/elbow_grid_k3.png">orig/prob/elbow_grid_k3.png</a> &mdash; systems whose optimal k = 3</li>
+<li><a href="orig/prob/elbow_grid_k4.png">orig/prob/elbow_grid_k4.png</a> &mdash; systems whose optimal k = 4</li>
+<li><a href="orig/prob/elbow_grid_k5.png">orig/prob/elbow_grid_k5.png</a> &mdash; systems whose optimal k = 5</li>
+<li><a href="orig/prob/elbow_grid_k7.png">orig/prob/elbow_grid_k7.png</a> &mdash; systems whose optimal k = 7</li>
+<li><a href="orig/prob/elbow_grid_k8.png">orig/prob/elbow_grid_k8.png</a> &mdash; systems whose optimal k = 8</li>
+</ul>
+<h3>cond_type = <code>cat</code></h3>
+<ul>
+<li><a href="orig/cat/elbow_grid_k2.png">orig/cat/elbow_grid_k2.png</a> &mdash; systems whose optimal k = 2</li>
+<li><a href="orig/cat/elbow_grid_k3.png">orig/cat/elbow_grid_k3.png</a> &mdash; systems whose optimal k = 3</li>
+<li><a href="orig/cat/elbow_grid_k4.png">orig/cat/elbow_grid_k4.png</a> &mdash; systems whose optimal k = 4</li>
+</ul>
+<h2>Embedding type: <code>delta</code></h2>
+<h3>cond_type = <code>all</code></h3>
+<ul>
+<li><a href="delta/all/elbow_grid_k2.png">delta/all/elbow_grid_k2.png</a> &mdash; systems whose optimal k = 2</li>
+<li><a href="delta/all/elbow_grid_k3.png">delta/all/elbow_grid_k3.png</a> &mdash; systems whose optimal k = 3</li>
+<li><a href="delta/all/elbow_grid_k4.png">delta/all/elbow_grid_k4.png</a> &mdash; systems whose optimal k = 4</li>
+<li><a href="delta/all/elbow_grid_k5.png">delta/all/elbow_grid_k5.png</a> &mdash; systems whose optimal k = 5</li>
+</ul>
+<h3>cond_type = <code>no_cond</code></h3>
+<ul>
+<li><a href="delta/no_cond/elbow_grid_k2.png">delta/no_cond/elbow_grid_k2.png</a> &mdash; systems whose optimal k = 2</li>
+<li><a href="delta/no_cond/elbow_grid_k3.png">delta/no_cond/elbow_grid_k3.png</a> &mdash; systems whose optimal k = 3</li>
+<li><a href="delta/no_cond/elbow_grid_k4.png">delta/no_cond/elbow_grid_k4.png</a> &mdash; systems whose optimal k = 4</li>
+<li><a href="delta/no_cond/elbow_grid_k5.png">delta/no_cond/elbow_grid_k5.png</a> &mdash; systems whose optimal k = 5</li>
+</ul>
+<h3>cond_type = <code>prob</code></h3>
+<ul>
+<li><a href="delta/prob/elbow_grid_k2.png">delta/prob/elbow_grid_k2.png</a> &mdash; systems whose optimal k = 2</li>
+<li><a href="delta/prob/elbow_grid_k3.png">delta/prob/elbow_grid_k3.png</a> &mdash; systems whose optimal k = 3</li>
+<li><a href="delta/prob/elbow_grid_k5.png">delta/prob/elbow_grid_k5.png</a> &mdash; systems whose optimal k = 5</li>
+<li><a href="delta/prob/elbow_grid_k6.png">delta/prob/elbow_grid_k6.png</a> &mdash; systems whose optimal k = 6</li>
+</ul>
+<h3>cond_type = <code>cat</code></h3>
+<ul>
+<li><a href="delta/cat/elbow_grid_k2.png">delta/cat/elbow_grid_k2.png</a> &mdash; systems whose optimal k = 2</li>
+<li><a href="delta/cat/elbow_grid_k3.png">delta/cat/elbow_grid_k3.png</a> &mdash; systems whose optimal k = 3</li>
+</ul>
+</body>
+</html>

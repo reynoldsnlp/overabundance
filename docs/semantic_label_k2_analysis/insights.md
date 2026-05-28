@@ -1,23 +1,23 @@
 # Semantic Label k=2 Analysis
 
-Generated: 2026-05-27T21:45:24
-Rows analyzed: 1942
-Models: answerdotai_ModernBERT-base, bert_base_uncased, kanishka_GlossBERT, transfo-xl-wt103
+Generated: 2026-05-28T09:29:28
+Rows analyzed: 2432
+Models: Qwen_Qwen2.5-32B, answerdotai_ModernBERT-base, bert_base_uncased, kanishka_GlossBERT, transfo-xl-wt103
 
 ## Overall Correlation Highlights
 
-- Strongest overall Spearman association with `p_eq`: `k2_form_var_ratio` (rho=-0.291, Pearson=-0.189, n=1774). Higher k=2 / form variance ratio tends to line up with lower p_eq.
-- Strongest ratio-based association with `p_eq`: `k2_form_var_ratio` (rho=-0.291, n=1774). Higher k=2 / form variance ratio tends to line up with lower p_eq.
+- Strongest overall Spearman association with `p_eq`: `k2_form_var_ratio` (rho=-0.271, Pearson=-0.180, n=2222). Higher k=2 / form variance ratio tends to line up with lower p_eq.
+- Strongest ratio-based association with `p_eq`: `k2_form_var_ratio` (rho=-0.271, n=2222). Higher k=2 / form variance ratio tends to line up with lower p_eq.
 
-- Strongest overall Spearman association with `p_cat`: `k2_form_sil_ratio` (rho=-0.257, Pearson=-0.002, n=1774). Higher k=2 / form silhouette ratio tends to line up with lower p_cat.
-- Strongest ratio-based association with `p_cat`: `k2_form_sil_ratio` (rho=-0.257, n=1774). Higher k=2 / form silhouette ratio tends to line up with lower p_cat.
+- Strongest overall Spearman association with `p_cat`: `k2_form_sil_ratio` (rho=-0.239, Pearson=-0.009, n=2222). Higher k=2 / form silhouette ratio tends to line up with lower p_cat.
+- Strongest ratio-based association with `p_cat`: `k2_form_sil_ratio` (rho=-0.239, n=2222). Higher k=2 / form silhouette ratio tends to line up with lower p_cat.
 
 ## Cond_type Contrasts
 
-- Median `k2_sil` by `cond_type`: no_cond=0.253, prob=0.240, cat=0.127.
-- Median `k2_form_sil_ratio` by `cond_type`: no_cond=1.000, prob=1.000, cat=0.906.
-- Median `k2_var_mean` by `cond_type`: prob=16.871, cat=16.064, no_cond=15.399.
-- Median `k2_form_var_ratio` by `cond_type`: cat=1.062, no_cond=1.000, prob=1.000.
+- Median `k2_sil` by `cond_type`: no_cond=0.269, prob=0.259, cat=0.151.
+- Median `k2_form_sil_ratio` by `cond_type`: no_cond=1.000, prob=1.000, cat=0.977.
+- Median `k2_var_mean` by `cond_type`: prob=39.382, no_cond=38.120, cat=37.894.
+- Median `k2_form_var_ratio` by `cond_type`: cat=1.037, no_cond=1.000, prob=1.000.
 
 ## Strongest Model x Embed Slices
 
