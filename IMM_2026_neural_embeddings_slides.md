@@ -126,25 +126,45 @@ Leave-one-out classification accuracy, by how meaning conditions form:
 
 ---
 
-## Result 3 — The smoking gun: separation lives in the *form*, not the *meaning*
+## Result 3 — Where does meaning live? Clustering by meaning, layer by layer
 
-Mean k=2 (form vs. form) silhouette **by layer** — *orig* embeddings:
+![Per-layer by-meaning silhouette](docs/per_layer_silhouette/per_layer_meaning_curves.png)
 
-| Model | Layer 0 (input/lexical) | Mid layers | Top layer |
+By-meaning silhouette (cosine, macro) at **every hidden layer** of each model. Grey band = "no substantial structure" (< 0.25).
+
+- 🔴 **Form-predictable senses** (label tracks the *form*): **highest at the input layer (~0.50–0.58), fades with depth** → the surface-form cue is contextualized away.
+- 🔵🟢 **Genuine meaning** (all senses / non-categorical): **negative at the input, *rises* with depth, but plateaus weak** (peak ≈ 0.03–0.15) — never escapes the grey band.
+
+> Notes: This replaces the form-confounded metric we showed earlier. The two
+> signals cross: as you go deeper, form-separability falls and meaning-
+> separability rises — exactly the lexical→semantic progression of Tenney et al.
+> (2019). The punchline: the models DO build meaning with depth, they just can't
+> separate these closely-related overabundant senses strongly at any layer.
+
+---
+
+## Result 3 (cont.) — The same picture in numbers
+
+Best (peak-layer) by-meaning silhouette, *orig* embeddings — and where it occurs:
+
+| Model | Meaning, all senses | Meaning, non-categorical | Form-predictable (cat.) |
 |---|---|---|---|
-| BERT-base | **0.46** | 0.25 | 0.25 |
-| GlossBERT | **0.44** | 0.24 | 0.25 |
-| ModernBERT | **0.44** | 0.19–0.25 | 0.22 |
-| Qwen-32B | **0.46** | 0.11–0.15 | 0.24 |
+| BERT-base | 0.03 (deep) | 0.14 (mid) | 0.54 → **0.18** (input→final) |
+| GlossBERT | 0.05 (deep) | 0.15 (upper) | 0.53 → **0.19** |
+| ModernBERT | −0.06 (top) | 0.08 (top) | 0.58 → **0.26** |
+| Transformer-XL | −0.12 (top) | 0.03 (top) | 0.59 → **0.16** |
 
-- Separation is **highest at the input layer** (static, pre-contextual ≈ the surface form) and **decays through the deep semantic layers** in *every* model.
-- The deep contextual layers — where genuine meaning lives (Tenney et al. 2019) — push the two forms **together**, not apart.
+- **No model, no layer** reaches "reasonable structure" (0.51) for genuine meaning; the best is GlossBERT's 0.15 — still "weak/possibly artificial."
+- Form separability **collapses** from input to output (e.g. 0.58 → 0.26) as the variants are pulled toward a shared contextual representation.
+- The **standard final-layer embedding** (the headline "orig" result) is the *rightmost* point on each curve — and for non-categorical meaning it isn't even the best layer (the mid/upper layers edge it out).
 
-> Notes: THE key slide. As you go deeper, the model treats the variants as more
-> interchangeable. The "separation" we see is orthographic/lexical, not
-> semantic. This is the opposite of what we'd see for a real sense distinction —
-> and it actually corroborates Jeff's "no meaning difference" finding: the model
-> agrees by collapsing the forms.
+> Notes: GlossBERT (sense-trained) edges out the rest on meaning, but only
+> trivially. Our per-layer final-layer values reproduce the headline numbers
+> exactly (e.g. BERT cat-only 0.182), confirming the headline "orig" embedding is
+> the full final-layer vector. The per-layer view shows *why* it's weak: form-
+> info and meaning-info peak at different depths and neither yields strong meaning
+> clusters. Qwen-32B per-layer run is pending (its cache stores only attention-
+> head slices of the final layer, not hidden states) — see backup.
 
 ---
 
@@ -183,7 +203,7 @@ Do embedding clustering metrics track Jeff's distributional significance (`p_eq`
 ## Robustness — scale and hyperparameters don't rescue it
 
 - **Dimensionality-reduction grid search** (t-SNE perplexity, UMAP n-neighbors/min-dist, PCA): visualizations shift cosmetically; **the clustering conclusions do not change.**
-- **Model scale doesn't help:** Qwen-32B (64 layers) is no better than 110M-parameter BERT — and shows the *same* layer-0-peak, deep-layer-collapse profile.
+- **Model scale doesn't help:** on the headline (final-layer) clustering, Qwen-32B is no better than 110M-parameter BERT; its final-layer attention-head subspaces show the same flat, weak by-meaning signal.
 - **Sense supervision doesn't help:** GlossBERT ≈ vanilla BERT.
 - As Jeff's conclusion puts it: *"distinctions without a meaningful difference for our data."*
 
@@ -210,7 +230,7 @@ Do embedding clustering metrics track Jeff's distributional significance (`p_eq`
 ## What transformer embeddings CAN do here (strengths)
 
 - **Confirm the easy cases automatically.** Where meaning categorically conditions form (e.g. *hanged* vs. *hung*), supervised separation is high (LOO 0.88–0.94) and clusters are visible — a cheap automatic detector for *clear* conditioning.
-- **Corroborate "no difference" findings.** Deep-layer collapse of variants is independent evidence that pairs like *strive/strove* are functionally interchangeable.
+- **Corroborate "no difference" findings.** With depth the variants' surface-form separability collapses toward a shared representation — independent evidence that pairs like *strive/strove* are functionally interchangeable.
 - **Scale.** Once set up, the pipeline runs over hundreds of lexemes with no annotation — a useful **triage / hypothesis-generation** tool to flag pairs worth manual tagging.
 - **The delta + per-layer design** gives an interpretable read on *where* (if anywhere) a distinction is encoded.
 
@@ -218,7 +238,7 @@ Do embedding clustering metrics track Jeff's distributional significance (`p_eq`
 
 ## What they CANNOT do here (weaknesses)
 
-- **No reliable bottom-up sense discovery** for closely-related, in-paradigm variants (raw silhouette ≈ 0 across all five models).
+- **No reliable bottom-up sense discovery** for closely-related, in-paradigm variants (raw by-meaning silhouette ≈ 0 at every layer of every model tested).
 - **Cannot recover the number of senses** — they under-segment (~k=2 vs. ~9.5).
 - **No stable mapping** onto the distributional significance types (correlations weak, signs unstable).
 - **Confound trap:** apparent success often reflects **surface form**, not meaning — visible only because we did the per-layer and form-removed controls.
