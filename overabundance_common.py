@@ -1402,6 +1402,11 @@ def write_visualization_sets(
     if requested_embedding_source not in sources:
         sources.append(requested_embedding_source)
 
+    # Combined (all-lexeme) scatter plots live under docs/<slug>_combined/, as a
+    # sibling to the per-lexeme docs/<slug>_lexemes/ tree.
+    combined_dir = os.path.join(docs_dir, f"{slug}_combined")
+    os.makedirs(combined_dir, exist_ok=True)
+
     for source in sources:
         use_heads = source in {"head", "head_delta", "head_delta_from_raw", "orig_head", "art_head"}
         source_head_indices = head_indices if use_heads else None
@@ -1409,7 +1414,7 @@ def write_visualization_sets(
             embed_records,
             model_name=model_name,
             slug=slug,
-            docs_dir=docs_dir,
+            docs_dir=combined_dir,
             embedding_source=source,
             head_indices=source_head_indices,
         )
@@ -1421,6 +1426,9 @@ def write_visualization_sets(
             embedding_source=source,
             head_indices=source_head_indices,
         )
+
+    generate_index_html(combined_dir)
+    refresh_docs_indexes_for_path(combined_dir, docs_dir=docs_dir)
 
 
 def generate_index_html(folder: str) -> None:
